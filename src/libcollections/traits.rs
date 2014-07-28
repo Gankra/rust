@@ -25,6 +25,25 @@ pub trait Collection {
 pub trait Mutable: Collection {
     /// Remove all elements from the collection
     fn clear(&mut self);
+
+    /// Request the collection reserve enough space for `capacity` elements.
+    /// By default a no-op, since no collection *needs* to support this, or directly
+    /// obey the request. May over-allocate for amortization purposes. Does nothing
+    /// if current capacity is already sufficient. 
+    /// For many collections, it probably makes no sense (doubly-linked-list).
+    /// Handy for array-based structures, to avoid multiple grows
+    fn reserve(&mut self, capacity: uint) {}
+
+    /// Like reserve, but will never over-allocate
+    fn reserve_exact(&mut self, capacity: uint) {}
+
+    /// Reserve space for `extra` additional elements more than the collection's len
+    fn reserve_additional(&mut self, extra: uint) {
+        self.reserve(self.len() + extra);
+    }
+
+    /// Request that the collection discard any unused capacity, see Request for reasoning
+    fn shrink_to_fit(&mut self) {}
 }
 
 
@@ -272,10 +291,9 @@ pub trait List<T> : Container<T> {
     fn get <'a> (&'a self, index: uint) -> Option<&'a T>;
 }
 
-/// Mutable version of a List
+/// Mutable version of a List. Provides no ways to change the size
+/// to support fixed-size lists.
 pub trait MutableList <T> : List<T> + MutableContainer<T> {
-    //splice operation? Deque operations? Empty-space-padding versions of swap/insert?
-
     /// Insert the value at the given index if it is in-bounds, 
     /// and return the value that previously occupied that index, or None otherwise
     fn swap_at (&mut self, index: uint, value: T) -> Option<T>;
@@ -284,6 +302,14 @@ pub trait MutableList <T> : List<T> + MutableContainer<T> {
     fn insert_at (&mut self, index: uint, value: T) -> bool {
         self.swap_at(index, value).is_some()
     }
+
+    /// Switch the two the values at the given indices
+    fn switch (&mut self, a:uint, b:uint); // might be an `unsafe` default impl for this?
+}
+
+/// A List that's actually resizable
+pub trait ResizableList <T> : MutableList<T> + Deque<T> {
+    // TODO: Splice?
 
     /// Remove the value at the given index if it is in-bounds, and return the value
     /// that occupied that location if it was in-bounds, or None otherwise. Decrements
@@ -295,6 +321,19 @@ pub trait MutableList <T> : List<T> + MutableContainer<T> {
     fn remove_at (&mut self, index: uint) -> bool {
         self.pop_at(index).is_some()
     }
+
+    /// Remove elements until the collection contains at most `len` elements
+    /// Does nothing if already small enough.
+    fn truncate (&mut self, len: uint) -> uint {
+        let amount = self.len() - len;
+        for i in range(0, amount) {
+            self.pop_back();
+        }
+
+        if amount < 0 { 0 } else { amount }
+    }
+
+    // TODO: some grow_* methods, require clone. Different trait?
 }
 
 /// If a List is Searchable, then we can report the index of certain contents
