@@ -352,23 +352,52 @@ pub trait SearchableList<T> : List<T> + SearchableContainer<T> {
 
 /// A Set is a container which guarantees that no value is duplicated. Consequently,
 /// it is fundamentally just a SearchableContainer with an additional implementation detail.
-/// Similar to Eq vs PartialEq. However, the current Set trait in libcollections has some extra
-/// set operations that I have no particularly strong feelings about. Seems odd to only accept
+/// Similar to Eq vs PartialEq. However, the current Set trait (and various concrete impls) 
+/// in libcollections have some extra set operations that I have no particularly strong
+/// feelings about, but are included anyway. Seems odd to only accept
 /// Self, but it permits superior optimization for e.g. TreeSets, I guess.
 ///
-/// These methods can all easily be written with a doubly-nested for loop and `contains()`
+/// These methods can all easily be written with for loop and `contains()`
 /// even for two perfectly generic sets of different types.
 pub trait Set<T>: SearchableContainer<T> {
-    fn is_disjoint(&self, other: &Self) -> bool; 
-    fn is_subset(&self, other: &Self) -> bool; 
-    fn is_superset(&self, other: &Self) -> bool;
+    fn is_disjoint(&self, other: &Self) -> bool {
+        let result = true;
+        self.foreach(|x|{
+            result = !result.contains(x); !result
+        });
+        result
+    }
+
+    fn is_subset(&self, other: &Self) -> bool {
+        let result = true;
+        other.foreach(|x|{
+            result = self.contains(x); !result
+        });
+        result
+    }; 
+
+    fn is_superset(&self, other: &Self) -> bool {
+        other.is_subset(self)
+    };
+
+    //need Default to default these
     fn difference(&self, other: &Self) -> Self;
     fn symmetric_difference(&self, other: &Self) -> Self;
+    fn union(&self, other: &Self) -> Self;
+    fn intersection(&self, other: &Self) -> Self;
 }
 
 /// A Set that's mutable. Again, just an internal implementation detail trait
 /// over a MutableSearchableContainer 
 pub trait MutableSet<T>: Set<T> + MutableSearchableContainer<T> {
+    /// Make self the difference of self and other
+    fn difference_with(&mut self, other: &Self);
+    /// Make self the symmetric difference of self and other
+    fn symmetric_difference_with(&mut self, other: &Self);
+    /// Make self the intersection of self and other
+    fn intersection_with(&mut self, other: &Self);
+
+    // union_with is *really* just insert_all.
 }
 
 /// It's a Queue. Come on.
