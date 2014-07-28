@@ -22,7 +22,7 @@ pub trait Collection {
 }
 
 /// A Mutable Collection. See Collection for reasoning.
-pub trait Mutable: Collection {
+pub trait MutableCollection: Collection {
     /// Remove all elements from the collection
     fn clear(&mut self);
 
@@ -80,7 +80,7 @@ pub trait Container<T>: Collection {
 ///
 /// Unstructured containers can consequently permit their contents to
 /// be mutated freely.
-pub trait Unstructured<T> : MutableContainer<T> { // dumb name, at a loss
+pub trait UnstructuredContainer<T> : MutableContainer<T> { // dumb name, at a loss
     /// Call the provided closure on all of the Container's contents
     /// in whatever order the Container wants, permiting mutations. 
     /// Stops calling the closure after the first time it yields `true`.
@@ -90,7 +90,7 @@ pub trait Unstructured<T> : MutableContainer<T> { // dumb name, at a loss
 /// A Mutable version of Container. A Mutable container should always support
 /// adding elements if it can exist at all. Having a mutable container by-value
 /// should also permit the owner to move all of its contents.
-pub trait MutableContainer<T>: Container<T> + Mutable {
+pub trait MutableContainer<T>: Container<T> + MutableCollection {
     /// Call the provided closure on all of the Container's contents
     /// in whatever order the Container wants, moving the values into the
     /// closure. The Container cannot be used after this method is called. 
@@ -482,7 +482,7 @@ pub trait Map<K, V>: Collection {
 }
 
 /// Mutable version of a Map
-pub trait MutableMap<K, V>: Map<K, V> + Mutable {
+pub trait MutableMap<K, V>: Map<K, V> + MutableCollection {
     /// Call the provided closure on all of the Map's contents
     /// in whatever order the Map wants, providing mutable
     /// access to the values, since the Map doesn't care about them. 
