@@ -308,6 +308,8 @@ pub trait MutableList <T> : List<T> + MutableContainer<T> {
 }
 
 /// A List that's actually resizable
+// I'm not a *huge* fan of inheriting Deque, because I'd expect a Deque to be *efficient* at
+// all operations, but Vec's unshift is horribly slow.
 pub trait ResizableList <T> : MutableList<T> + Deque<T> {
     // TODO: Splice?
 
