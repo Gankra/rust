@@ -64,39 +64,16 @@ pub trait MutableCollection: Collection {
 /// even simple queries like "do you contain X". Containers are varied
 /// enough that they need to be divided up into various sub-traits
 /// to reasonably capture the whole landscape. 
-pub trait Container<T>: Collection {
-    /// Call the provided closure on all of the Container's contents
-    /// in whatever order the Container wants. Stops calling the
-    /// closure after the first time it yields `true`
-    fn foreach(&self, f: |&T| -> bool);
-}
-
-/// For containers that don't care about the values of their contents
-/// The canonical example of an unstructured container is an indexed
-/// container like a Deque or Vec. The canonical example of a structure
-/// that *isn't* unstructured would be a Set, which must enforce
-/// non-duplicates, or a Heap, which internally organizes its contents
-/// to answer queries about them.
 ///
-/// Unstructured containers can consequently permit their contents to
-/// be mutated freely.
-pub trait UnstructuredContainer<T> : MutableContainer<T> { // dumb name, at a loss
-    /// Call the provided closure on all of the Container's contents
-    /// in whatever order the Container wants, permiting mutations. 
-    /// Stops calling the closure after the first time it yields `true`.
-    fn foreach_mut(&mut self, f: |&mut T| -> bool); 
-}
+/// This trait might be useful once generic iteration is available. For
+/// now, a perfectly generic immutable container is basically useless.
+/// Left in for posterity/clarity, at the moment. Effectively [deprecated].
+pub trait Container<T>: Collection {} 
 
 /// A Mutable version of Container. A Mutable container should always support
 /// adding elements if it can exist at all. Having a mutable container by-value
 /// should also permit the owner to move all of its contents.
 pub trait MutableContainer<T>: Container<T> + MutableCollection {
-    /// Call the provided closure on all of the Container's contents
-    /// in whatever order the Container wants, moving the values into the
-    /// closure. The Container cannot be used after this method is called. 
-    /// Stops calling the closure after the first time it yields `true`.
-    fn foreach_move(self, f:|T| -> bool);
-
     /// Insert a value into the Container in whatever way makes the most sense 
     /// by default. For a Stack this would be a push, for a queue this would be
     /// an enqueue. 
@@ -118,13 +95,13 @@ pub trait MutableContainer<T>: Container<T> + MutableCollection {
         self.swap(value).is_none()
     }
 
-    /// Move all the contents of another container into this one.
+    /// Move all the contents of the iterator into this one.
     ///
     /// Just a convenience method to avoid boilerplate 
-    fn insert_all <C: MutableContainer> (&mut self, other: C) {
-        other.foreach_move(|x| {
+    fn insert_all <I: Iterator<T>> (&mut self, iter: I) {
+        for x in iter {
             self.insert(x); false
-        });
+        }
     }
 }
 
@@ -134,23 +111,19 @@ pub trait MutableContainer<T>: Container<T> + MutableCollection {
 /// This trait allows them to make that distinction.
 pub trait SearchableContainer <T> : Container<T> {
     /// Return true if the given value is contained within the Container.
-    ///
-    /// Should be able to default impl this for all SearchableContainers 
-    /// that have a T that implements Eq (PartialEq?), using Container.foreach
-    /// though this would break with today's trait system
     fn contains(&self, value: &T) -> bool; 
 
-    /// Return true if every element in the given container is contained
+    /// Return true if every element in the given iterator is contained
     /// within this one.
     ///
     /// Just another boilerplate utility method
-    fn contains_all <C: Container<T>> (&self, other: &C) {
-        let mut found = true; // default true for empty containers
-        other.foreach(|x| {
-            found = self.contains(x);
-            found
-        });
-        found
+    fn contains_all <'a, I: Iterator<&'a T>> (&self, iter: I) {
+        let mut found_all = true; // default true for empty containers
+        for x in iter {
+            found_all = self.contains(x);
+            if !found_all { break; }
+        }
+        found_all
     }
 }
 
@@ -180,69 +153,44 @@ pub trait MutableSearchableContainer <T> : MutableContainer<T> {
         count
     }
 
-    /// Remove every value found in the given container from this one. Only as many duplicate
-    /// copies will be removed as there are duplicate copies in the provided container
-    fn remove_all <C: Container> (&mut self, other: &C) {
-        other.foreach(|x| {
-            self.remove(x); false
-        });
+    /// Remove every value found in the given iterator from this one. Only as many duplicate
+    /// copies will be removed as there are duplicate copies in the provided iterator
+    fn remove_all <'a, Iterator<&'a T>> (&mut self, iter: I) {
+        for x in iter {
+            self.remove(x);
+        }
     }
 
-    /// Remove every copy of every value found in the given container from this one.
-    fn erase_all <C: Container> (&mut self, other: &C) {
-        other.foreach(|x| {
-            self.erase(x); false
-        });    
+    /// Remove every copy of every value found in the given iterator from this one.
+    fn erase_all <'a, Iterator<&'a T>> (&mut self, iter: I) {
+        for x in iter {
+            self.erase(x);
+        }    
     }
 
-    /// Remove every value *not* found in the given container. Not sure on the value of this.
+    /// Remove every value *not* found in the given iterator. Not sure on the value of this.
     /// Java's Collection has it, though.
     ///
     /// Writing a default for this would be possible but *horrendously* inefficient with the
     /// current interfaces I've written. Like, building a third container to hold
     /// all the elements that were found to be in self, but not in other, and then
     /// remove_all'ing that container. Maybe we want a remove-supporting iterator?
-    fn retain_all <C: Container> (&mut self, other: &C) ;
+    fn retain_all <'a, Iterator<&'a T>> (&mut self, iter: I);
 }
 
-/// A Container that maintains an internal sorting of the elements, permiting various queries
+/// A Container that maintains an internal sorting of the elements, permitting various queries
 /// to be made on the collection that wouldn't necessarily be reasonable on others.
 /// A TreeSet, for instance would be a SortedSet. A HashSet wouldn't, and in fact a perfectly
 /// generic HashSet has no notion of Ord, and so couldn't support this if it wanted to.
 /// In theory a HashSet<T:Ord> could implement this interface, but it would be stupid. 
 pub trait SortedContainer<T>: SearchableContainer<T> {
-    // constructors for comparators?? Perhaps out of scope of traits.
-
-    /// Call the provided closure on all of the Container's contents in the range [min, max]
-    /// in the underlying sorted order of the Container. Stops calling the
-    /// closure after the first time it yields `true`. 
-    ///
-    /// If either min or max is not provided, min and max will conceptually be replaced with
-    /// -infinity and infinity respectively.
-    ///
-    /// Rather than Options for the bounds, it might be desirable to have a custom enum
-    /// Bound <T> { Unbounded, Include(T), Exclude(T) }?
-    fn foreach_sorted(&self, f: |&T| -> bool, min: Option<&T>, max: Option<&T>);
-
     /// Return the smallest element in the collection, determined by the collection's own
     /// ordering, or None if empty
-    fn min <'a> (&'a self) -> Option<&'a T> {
-        let mut min = None;
-        self.foreach_sorted(|x| -> {
-            min = Some(x); true
-        });
-        min
-    }
+    fn min <'a> (&'a self) -> Option<&'a T>;
 
     /// Return the largest element in the collection, determined by the collection's own
     /// ordering, or None if empty
-    fn max <'a> (&'a self) -> Option<&'a T> {
-        let mut max = None;
-        self.foreach_sorted(|x| -> {
-            max = Some(x); false
-        });
-        max
-    }
+    fn max <'a> (&'a self) -> Option<&'a T>;
 
     /// Return the largest element less than the given value, or None if no such value exists
     fn lower_bound_exclusive(&self, value: &T) -> Option<T>; // defaulted for partial ord?
@@ -259,17 +207,6 @@ pub trait SortedContainer<T>: SearchableContainer<T> {
 
 /// Mutable version of SortedContainer
 pub trait MutableSortedContainer<T>: SortedContainer<T> + MutableSearchableContainer<T> {
-    /// Call the provided closure on all of the Container's contents in the range [min, max]
-    /// in the underlying sorted order of the Container. Stops calling the
-    /// closure after the first time it yields `true`. 
-    /// The Container cannot be used after this method is called. 
-    /// Stops calling the closure after the first time it yields `true`.
-    ///
-    /// See SortedContainer.foreach_sorted for further details and thoughts
-    /// Note that foreach_sorted_mut is not possible here, since SortedContainers
-    /// are by definition structured.
-    fn foreach_sorted_move(self, f:|T| -> bool, min: Option<&T>, max: Option<&T>);
-
     /// Remove and return the smallest element in the collection, or None if empty
     fn pop_min(&self) -> Option<T>; // not possible to default, since min borrows &self :(
     
@@ -359,30 +296,13 @@ pub trait SearchableList<T> : List<T> + SearchableContainer<T> {
 /// feelings about, but are included anyway. Seems odd to only accept
 /// Self, but it permits superior optimization for e.g. TreeSets, I guess.
 ///
-/// These methods can all easily be written with for loop and `contains()`
+/// These methods can all easily be written with a for loop and `contains()`
 /// even for two perfectly generic sets of different types.
 pub trait Set<T>: SearchableContainer<T> {
-    fn is_disjoint(&self, other: &Self) -> bool {
-        let result = true;
-        self.foreach(|x|{
-            result = !result.contains(x); !result
-        });
-        result
-    }
+    fn is_disjoint(&self, other: &Self);
+    fn is_subset(&self, other: &Self);
+    fn is_superset(&self, other: &Self);
 
-    fn is_subset(&self, other: &Self) -> bool {
-        let result = true;
-        other.foreach(|x|{
-            result = self.contains(x); !result
-        });
-        result
-    }; 
-
-    fn is_superset(&self, other: &Self) -> bool {
-        other.is_subset(self)
-    };
-
-    //need Default to default these
     fn difference(&self, other: &Self) -> Self;
     fn symmetric_difference(&self, other: &Self) -> Self;
     fn union(&self, other: &Self) -> Self;
@@ -462,16 +382,6 @@ pub trait PriorityQueue<T> : MutableContainer<T> {
 /// they are fundamentally searchable and indexed by their keys. Consequently, a
 /// Rust Map is basically what you'd expect in any other language
 pub trait Map<K, V>: Collection {
-    /// Call the provided closure on all of the Map's contents
-    /// in whatever order the Map wants. Stops calling the
-    /// closure after the first time it yields `true`
-    ///
-    /// Do we want key-only/value-only variants? This doesn't seem
-    /// *particularly* useful with tuples and destructuring.
-    /// Maybe a handy convenience if we really don't care about one, or want
-    /// to pipe directly into a Container?
-    fn foreach(&self, f: |(&K, &V)| -> bool);
-
     /// Return the value associated with the given key, or None if none exists
     fn find<'a>(&'a self, key: &K) -> Option<&'a V>;
 
@@ -483,18 +393,6 @@ pub trait Map<K, V>: Collection {
 
 /// Mutable version of a Map
 pub trait MutableMap<K, V>: Map<K, V> + MutableCollection {
-    /// Call the provided closure on all of the Map's contents
-    /// in whatever order the Map wants, providing mutable
-    /// access to the values, since the Map doesn't care about them. 
-    /// Stops calling the closure after the first time it yields `true`
-    fn foreach_mut(&mut self, f:|(&K, &mut V)| -> bool);
-
-    /// Call the provided closure on all of the Map's contents
-    /// in whatever order the Map wants, moving the values into the
-    /// closure. The Map cannot be used after this method is called. 
-    /// Stops calling the closure after the first time it yields `true`.
-    fn foreach_move(self, f:|(K, V)| -> bool);
-
     /// Insert the given key-value pair into the Map, and return the value
     /// that was already under the key, or None otherwise
     ///
@@ -519,22 +417,22 @@ pub trait MutableMap<K, V>: Map<K, V> + MutableCollection {
         self.pop(key).is_some()
     }
 
-    /// Move all contents of the given map into this one
-    fn insert_all <M:MutableMap> (&mut self, other: M) {
-        other.foreach_move(|(key, value)| {
-            self.insert(key, value); false
-        };
-    }
-
-    /// Remove all the keys found in the given map from this one
-    fn remove_all <M:Map> (&mut self, other: &M) {
-        other.foreach(|(key, _)|) {
-            self.remove(key); false
+    /// Move all contents of the given iterator into this one
+    fn insert_all <I:Iterator<K,V>> (&mut self, iter: I) {
+        for (key, value) in iter {
+            self.insert(key, value);
         }
     }
 
-    /// Remove all the keys *not* found in the given map
-    fn retain_all <M:Map> (&mut self, other: &M); // Defaultable...?
+    /// Remove all the keys found in the given iterator from this one
+    fn remove_all <'a, I: Iterator<&'a K>> (&mut self, iter: I) {
+        for key in iter {
+            self.remove(key);
+        }
+    }
+
+    /// Remove all the keys *not* found in the given iterator
+    fn retain_all <'a, I: Iterator<&'a K>> (&mut self, iter: I); // Defaultable...?
 
     /// Find the value associated with the given key, and return it mutably
     fn find_mut<'a>(&'a mut self, key: &K) -> Option<&'a mut V>;
@@ -547,25 +445,8 @@ pub trait MutableMap<K, V>: Map<K, V> + MutableCollection {
 ///
 /// See SortedContainer for method descriptions
 pub trait SortedMap<K,V>: Map<K,V> {
-    // constructors for comparators?? Possibly out of scope
-
-    fn foreach_sorted(&self, f: |(&K, &V)| -> bool, min: Option<&K>, max: Option<&K>);
-
-    fn min <'a> (&'a self) -> Option<(&'a K, &'a V)> {
-        let min = None;
-        self.foreach(|key, value| {
-            min = Some((key, value)); true
-        });
-        min
-    }
-
-    fn max <'a> (&'a self) -> Option<(&'a K, &'a V)> {
-        let max = None;
-        self.foreach(|key, value| {
-            max = Some((key, value)); false
-        });
-        max
-    }
+    fn min <'a> (&'a self) -> Option<(&'a K, &'a V)>;
+    fn max <'a> (&'a self) -> Option<(&'a K, &'a V)>;
     
     //ugh, and I guess mut variants of these in SortedMutableMap (value only) too??
     //defaulted if keys implement PartialEq?
@@ -577,10 +458,6 @@ pub trait SortedMap<K,V>: Map<K,V> {
 
 /// Mutable version of SortedMap, see MutableSortedContainer
 pub trait SortedMutableMap<K,V> : SortedMap<K,V> + MutableMap<K,V> {
-    // We can mutate values, so we can have this too.
-    fn foreach_sorted_mut(&mut self, f:|(&K, &mut V)| -> bool, min: Option<&K>, max: Option<&K>);
-    fn foreach_sorted_move(self, f:|(K, V)| -> bool, min: Option<&K>, max: Option<&K>);
-
     fn pop_min(&mut self) -> Option<(K, V)>;
     fn pop_max(&mut self) -> Option<(K, V)>;
 }
