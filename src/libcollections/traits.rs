@@ -38,6 +38,7 @@ pub trait MutableCollection: Collection {
     fn reserve_exact(&mut self, capacity: uint) {}
 
     /// Reserve space for `extra` additional elements more than the collection's len
+    /// Possible: hard fail if impossible?
     fn reserve_additional(&mut self, extra: uint) {
         self.reserve(self.len() + extra);
     }
@@ -193,16 +194,16 @@ pub trait SortedContainer<T>: SearchableContainer<T> {
     fn max <'a> (&'a self) -> Option<&'a T>;
 
     /// Return the largest element less than the given value, or None if no such value exists
-    fn lower_bound_exclusive(&self, value: &T) -> Option<T>; // defaulted for partial ord?
+    fn pred_ex <'a> (&'a self, value: &T) -> Option<&'a T>; // defaulted for partial ord?
 
     /// Return the largest element less than or equal to the given value, or None if no such value exists
-    fn lower_bound_inclusive(&self, value: &T) -> Option<T>; // defaulted for partial ord?
+    fn pred_in <'a> (&'a self, value: &T) -> Option<&'a T>; // defaulted for partial ord?
 
     /// Return the smallest element greater than the given value, or None if no such value exists
-    fn upper_bound_exclusive(&self, value: &T) -> Option<T>; // defaulted for partial ord?
+    fn succ_ex <'a> (&'a self, value: &T) -> Option<&'a T>; // defaulted for partial ord?
 
     /// Return the largest element greater than or equal to the given value, or None if no such value exists
-    fn upper_bound_inclusive(&self, value: &T) -> Option<T>; // defaulted for partial ord?
+    fn succ_in <'a> (&'a self, value: &T) -> Option<&'a T>; // defaulted for partial ord?
 }
 
 /// Mutable version of SortedContainer
@@ -448,16 +449,19 @@ pub trait SortedMap<K,V>: Map<K,V> {
     fn min <'a> (&'a self) -> Option<(&'a K, &'a V)>;
     fn max <'a> (&'a self) -> Option<(&'a K, &'a V)>;
     
-    //ugh, and I guess mut variants of these in SortedMutableMap (value only) too??
-    //defaulted if keys implement PartialEq?
-    fn lower_bound_exclusive(&self, value: &K) -> Option<(&K, &V)>; 
-    fn lower_bound_inclusive(&self, value: &K) -> Option<(&K, &V)>;
-    fn upper_bound_exclusive(&self, value: &K) -> Option<(&K, &V)>;
-    fn upper_bound_inclusive(&self, value: &K) -> Option<(&K, &V)>;
+    fn pred_in <'a> (&'a self, value: &K) -> Option<(&'a K, &'a V)>; 
+    fn pred_ex <'a> (&'a self, value: &K) -> Option<(&'a K, &'a V)>;
+    fn succ_in <'a> (&'a self, value: &K) -> Option<(&'a K, &'a V)>;
+    fn succ_ex <'a> (&'a self, value: &K) -> Option<(&'a K, &'a V)>;
 }
 
 /// Mutable version of SortedMap, see MutableSortedContainer
 pub trait SortedMutableMap<K,V> : SortedMap<K,V> + MutableMap<K,V> {
     fn pop_min(&mut self) -> Option<(K, V)>;
     fn pop_max(&mut self) -> Option<(K, V)>;
+
+    fn pred_in_mut(&self, value: &K) -> Option<(&'a K, &'a mut V)>; 
+    fn pred_ex_mut(&self, value: &K) -> Option<(&'a K, &'a mut V)>;
+    fn succ_in_mut(&self, value: &K) -> Option<(&'a K, &'a mut V)>;
+    fn succ_ex_mut(&self, value: &K) -> Option<(&'a K, &'a mut V)>;
 }
