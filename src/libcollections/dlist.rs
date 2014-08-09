@@ -19,7 +19,11 @@
 // including the last link being None; each Node owns its `next` field.
 //
 // Backlinks over DList::prev are raw pointers that form a full chain in
-// the reverse direction.
+// the reverse direction. Backlinks are inherently unsafe, as it is trivial to create
+// dangling Backlinks. As such, `resolving` a backlink is considered unsafe,
+// and all methods maintain safety by assuming that the DList is valid before they are
+// called, and ensuring that it is valid after they are called. It is also trivial to
+// upgrade mutability using Backlinks.
 
 use core::prelude::*;
 
@@ -37,22 +41,22 @@ use {Mutable, Deque, MutableSeq};
 pub struct DList<T> {
     length: uint,
     list_head: Link<T>,
-    list_tail: Rawlink<Node<T>>,
+    list_tail: Rawlink<T>,
 }
 
 type Link<T> = Option<Box<Node<T>>>;
-struct Rawlink<T> { p: *mut T }
+struct Rawlink<T> { p: *mut Node<T> }
 
 struct Node<T> {
     next: Link<T>,
-    prev: Rawlink<Node<T>>,
+    prev: Rawlink<T>,
     value: T,
 }
 
 /// An iterator over references to the items of a `DList`.
 pub struct Items<'a, T> {
-    head: &'a Link<T>,
-    tail: Rawlink<Node<T>>,
+    head: Rawlink<T>,
+    tail: Rawlink<T>,
     nelem: uint,
 }
 
@@ -64,8 +68,8 @@ impl<'a, T> Clone for Items<'a, T> {
 /// An iterator over mutable references to the items of a `DList`.
 pub struct MutItems<'a, T> {
     list: &'a mut DList<T>,
-    head: Rawlink<Node<T>>,
-    tail: Rawlink<Node<T>>,
+    head: Rawlink<T>,
+    tail: Rawlink<T>,
     nelem: uint,
 }
 
@@ -83,23 +87,21 @@ impl<T> Rawlink<T> {
     }
 
     /// Like Option::Some for Rawlink
-    fn some(n: &mut T) -> Rawlink<T> {
-        Rawlink{p: n}
+    fn some(n: &Node<T>) -> Rawlink<T> {
+        unsafe { Rawlink{p: mem::transmute(n) } }
     }
 
     /// Convert the `Rawlink` into an Option value
-    fn resolve_immut<'a>(&self) -> Option<&'a T> {
-        unsafe {
-            mem::transmute(self.p.to_option())
-        }
+    unsafe fn resolve_immut<'a>(&self) -> Option<&'a Node<T>> {
+        mem::transmute(self.p.to_option())
     }
 
     /// Convert the `Rawlink` into an Option value
-    fn resolve<'a>(&mut self) -> Option<&'a mut T> {
+    unsafe fn resolve<'a>(&mut self) -> Option<&'a mut Node<T>> {
         if self.p.is_null() {
             None
         } else {
-            Some(unsafe { mem::transmute(self.p) })
+            Some(mem::transmute(self.p))
         }
     }
 
@@ -122,8 +124,15 @@ impl<T> Node<T> {
     }
 }
 
+fn as_raw <T> (link: &Link<T>) -> Rawlink<T> {
+    match *link {
+        Some(ref h) => Rawlink::some(&**h),
+        None => Rawlink::none(),
+    }
+}
+
 /// Set the .prev field on `next`, then return `Some(next)`
-fn link_with_prev<T>(mut next: Box<Node<T>>, prev: Rawlink<Node<T>>)
+fn link_with_prev<T>(mut next: Box<Node<T>>, prev: Rawlink<T>)
                   -> Link<T> {
     next.prev = prev;
     Some(next)
@@ -193,27 +202,75 @@ impl<T> DList<T> {
     /// Add a Node last in the list
     #[inline]
     fn push_back_node(&mut self, mut new_tail: Box<Node<T>>) {
-        match self.list_tail.resolve() {
-            None => return self.push_front_node(new_tail),
-            Some(tail) => {
-                self.list_tail = Rawlink::some(&mut *new_tail);
-                tail.next = link_with_prev(new_tail, Rawlink::some(tail));
+        unsafe {
+            match self.list_tail.resolve() {
+                None => return self.push_front_node(new_tail),
+                Some(tail) => {
+                    self.list_tail = Rawlink::some(&mut *new_tail);
+                    tail.next = link_with_prev(new_tail, Rawlink::some(tail));
+                }
             }
+            self.length += 1;
         }
-        self.length += 1;
     }
 
     /// Remove the last Node and return it, or None if the list is empty
     #[inline]
     fn pop_back_node(&mut self) -> Option<Box<Node<T>>> {
-        self.list_tail.resolve().map_or(None, |tail| {
-            self.length -= 1;
-            self.list_tail = tail.prev;
-            match tail.prev.resolve() {
-                None => self.list_head.take(),
-                Some(tail_prev) => tail_prev.next.take()
+        unsafe {
+            self.list_tail.resolve().map_or(None, |tail| {
+                self.length -= 1;
+                self.list_tail = tail.prev;
+                match tail.prev.resolve() {
+                    None => self.list_head.take(),
+                    Some(tail_prev) => tail_prev.next.take()
+                }
+            })
+        }
+    }
+
+    /// Insert a Node in the list before the given Rawlink
+    ///
+    /// If the given Rawlink is null, append to the end of the list, so that this
+    /// function can potentially insert anywhere in the list
+    ///
+    /// #Safety
+    /// This is safe as long as `link` is a valid node in the DList, or `null`
+    #[inline]
+    unsafe fn insert_before_node(&mut self, mut link: Rawlink<T>, ins_node: Box<Node<T>>) {
+        match link.resolve() {
+            None => self.push_back_node(ins_node),
+            Some(node) => self.insert_after_node(node.prev, ins_node)
+        }
+    }
+
+    /// Insert a Node in the list after the given Rawlink
+    ///
+    /// If the given Rawlink is null, append to the front of the list, so that this
+    /// function can potentially insert anywhere in the list
+    ///
+    /// #Safety
+    /// This is safe as long as `link` is a valid node in the DList, or `null`
+    #[inline]
+    unsafe fn insert_after_node(&mut self, mut link: Rawlink<T>, mut ins_node: Box<Node<T>>) {
+        match link.resolve() {
+            None => self.push_front_node(ins_node),
+            Some(node) => {
+                let next_node = match node.next.take() {
+                    None => return self.push_back_node(ins_node),
+                    Some(next) => next,
+                };
+                ins_node.next = link_with_prev(next_node, Rawlink::some(&mut *ins_node));
+                node.next = link_with_prev(ins_node, Rawlink::some(node));
+                self.length += 1;
             }
-        })
+        }
+    }
+
+    /// Get the head of the list as a Rawlink
+    #[inline]
+    fn head_raw(&self) -> Rawlink<T>{
+        as_raw(&self.list_head)
     }
 }
 
@@ -236,14 +293,18 @@ impl<T> Deque<T> for DList<T> {
     /// empty.
     #[inline]
     fn back<'a>(&'a self) -> Option<&'a T> {
-        self.list_tail.resolve_immut().as_ref().map(|tail| &tail.value)
+        unsafe{
+            self.list_tail.resolve_immut().as_ref().map(|tail| &tail.value)
+        }
     }
 
     /// Provides a mutable reference to the back element, or `None` if the list
     /// is empty.
     #[inline]
     fn back_mut<'a>(&'a mut self) -> Option<&'a mut T> {
-        self.list_tail.resolve().map(|tail| &mut tail.value)
+        unsafe {
+            self.list_tail.resolve().map(|tail| &mut tail.value)
+        }
     }
 
     /// Adds an element first in the list.
@@ -360,18 +421,20 @@ impl<T> DList<T> {
     /// }
     /// ```
     pub fn append(&mut self, mut other: DList<T>) {
-        match self.list_tail.resolve() {
-            None => *self = other,
-            Some(tail) => {
-                // Carefully empty `other`.
-                let o_tail = other.list_tail.take();
-                let o_length = other.length;
-                match other.list_head.take() {
-                    None => return,
-                    Some(node) => {
-                        tail.next = link_with_prev(node, self.list_tail);
-                        self.list_tail = o_tail;
-                        self.length += o_length;
+        unsafe {
+            match self.list_tail.resolve() {
+                None => *self = other,
+                Some(tail) => {
+                    // Carefully empty `other`.
+                    let o_tail = other.list_tail.take();
+                    let o_length = other.length;
+                    match other.list_head.take() {
+                        None => return,
+                        Some(node) => {
+                            tail.next = link_with_prev(node, self.list_tail);
+                            self.list_tail = o_tail;
+                            self.length += o_length;
+                        }
                     }
                 }
             }
@@ -468,20 +531,21 @@ impl<T> DList<T> {
         self.append(other);
     }
 
-
     /// Provides a forward iterator.
     #[inline]
     pub fn iter<'a>(&'a self) -> Items<'a, T> {
-        Items{nelem: self.len(), head: &self.list_head, tail: self.list_tail}
+        let head_raw = self.head_raw();
+        Items{
+            nelem: self.len(),
+            head: head_raw,
+            tail: self.list_tail,
+        }
     }
 
     /// Provides a forward iterator with mutable references.
     #[inline]
     pub fn mut_iter<'a>(&'a mut self) -> MutItems<'a, T> {
-        let head_raw = match self.list_head {
-            Some(ref mut h) => Rawlink::some(&mut **h),
-            None => Rawlink::none(),
-        };
+        let head_raw = self.head_raw();
         MutItems{
             nelem: self.len(),
             head: head_raw,
@@ -516,11 +580,13 @@ impl<T> Drop for DList<T> {
         // when length is >> 1_000_000
         let mut tail = self.list_tail;
         loop {
-            match tail.resolve() {
-                None => break,
-                Some(prev) => {
-                    prev.next.take(); // release Box<Node<T>>
-                    tail = prev.prev;
+            unsafe {
+                match tail.resolve() {
+                    None => break,
+                    Some(prev) => {
+                        prev.next.take(); // release Box<Node<T>>
+                        tail = prev.prev;
+                    }
                 }
             }
         }
@@ -537,11 +603,13 @@ impl<'a, A> Iterator<&'a A> for Items<'a, A> {
         if self.nelem == 0 {
             return None;
         }
-        self.head.as_ref().map(|head| {
-            self.nelem -= 1;
-            self.head = &head.next;
-            &head.value
-        })
+        unsafe {
+            self.head.resolve_immut().as_ref().map(|head| {
+                self.nelem -= 1;
+                self.head = as_raw(&head.next);
+                &head.value
+            })
+        }
     }
 
     #[inline]
@@ -556,15 +624,27 @@ impl<'a, A> DoubleEndedIterator<&'a A> for Items<'a, A> {
         if self.nelem == 0 {
             return None;
         }
-        self.tail.resolve_immut().as_ref().map(|prev| {
-            self.nelem -= 1;
-            self.tail = prev.prev;
-            &prev.value
-        })
+        unsafe {
+            self.tail.resolve_immut().as_ref().map(|tail| {
+                self.nelem -= 1;
+                self.tail = tail.prev;
+                &tail.value
+            })
+        }
     }
 }
 
 impl<'a, A> ExactSize<&'a A> for Items<'a, A> {}
+
+// private methods
+impl <'a, A> MutItems<'a, A> {
+    #[inline]
+    fn insert_next_node(&mut self, ins_node: Box<Node<A>>) {
+        unsafe {
+            self.list.insert_before_node(self.head, ins_node);
+        }
+    }
+}
 
 impl<'a, A> Iterator<&'a mut A> for MutItems<'a, A> {
     #[inline]
@@ -572,14 +652,16 @@ impl<'a, A> Iterator<&'a mut A> for MutItems<'a, A> {
         if self.nelem == 0 {
             return None;
         }
-        self.head.resolve().map(|next| {
-            self.nelem -= 1;
-            self.head = match next.next {
-                Some(ref mut node) => Rawlink::some(&mut **node),
-                None => Rawlink::none(),
-            };
-            &mut next.value
-        })
+        unsafe {
+            self.head.resolve().map(|next| {
+                self.nelem -= 1;
+                self.head = match next.next {
+                    Some(ref mut node) => Rawlink::some(&mut **node),
+                    None => Rawlink::none(),
+                };
+                &mut next.value
+            })
+        }
     }
 
     #[inline]
@@ -594,11 +676,13 @@ impl<'a, A> DoubleEndedIterator<&'a mut A> for MutItems<'a, A> {
         if self.nelem == 0 {
             return None;
         }
-        self.tail.resolve().map(|prev| {
-            self.nelem -= 1;
-            self.tail = prev.prev;
-            &mut prev.value
-        })
+        unsafe {
+            self.tail.resolve().map(|prev| {
+                self.nelem -= 1;
+                self.tail = prev.prev;
+                &mut prev.value
+            })
+        }
     }
 }
 
@@ -616,29 +700,6 @@ pub trait ListInsertion<A> {
     fn peek_next<'a>(&'a mut self) -> Option<&'a mut A>;
 }
 
-// private methods for MutItems
-impl<'a, A> MutItems<'a, A> {
-    fn insert_next_node(&mut self, mut ins_node: Box<Node<A>>) {
-        // Insert before `self.head` so that it is between the
-        // previously yielded element and self.head.
-        //
-        // The inserted node will not appear in further iteration.
-        match self.head.resolve() {
-            None => { self.list.push_back_node(ins_node); }
-            Some(node) => {
-                let prev_node = match node.prev.resolve() {
-                    None => return self.list.push_front_node(ins_node),
-                    Some(prev) => prev,
-                };
-                let node_own = prev_node.next.take_unwrap();
-                ins_node.next = link_with_prev(node_own, Rawlink::some(&mut *ins_node));
-                prev_node.next = link_with_prev(ins_node, Rawlink::some(prev_node));
-                self.list.length += 1;
-            }
-        }
-    }
-}
-
 impl<'a, A> ListInsertion<A> for MutItems<'a, A> {
     #[inline]
     fn insert_next(&mut self, elt: A) {
@@ -650,7 +711,9 @@ impl<'a, A> ListInsertion<A> for MutItems<'a, A> {
         if self.nelem == 0 {
             return None
         }
-        self.head.resolve().map(|head| &mut head.value)
+        unsafe {
+            self.head.resolve().map(|head| &mut head.value)
+        }
     }
 }
 
@@ -759,13 +822,15 @@ mod tests {
             Some(ref node) => node_ptr = &**node,
         }
         loop {
-            match (last_ptr, node_ptr.prev.resolve_immut()) {
-                (None   , None      ) => {}
-                (None   , _         ) => fail!("prev link for list_head"),
-                (Some(p), Some(pptr)) => {
-                    assert_eq!(p as *const Node<T>, pptr as *const Node<T>);
+            unsafe {
+                match (last_ptr, node_ptr.prev.resolve_immut()) {
+                    (None   , None      ) => {}
+                    (None   , _         ) => fail!("prev link for list_head"),
+                    (Some(p), Some(pptr)) => {
+                        assert_eq!(p as *const Node<T>, pptr as *const Node<T>);
+                    }
+                    _ => fail!("prev link is none, not good"),
                 }
-                _ => fail!("prev link is none, not good"),
             }
             match node_ptr.next {
                 Some(ref next) => {
