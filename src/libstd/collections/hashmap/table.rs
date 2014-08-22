@@ -698,14 +698,14 @@ impl<K, V> RawTable<K, V> {
         }
     }
 
-    fn rev_move_buckets<'a>(&'a mut self) -> RevMoveBuckets<'a, K, V> {
+    /// Returns an iterator that copies out each entry. Used while the table
+    /// is being dropped.
+    unsafe fn rev_move_buckets(&mut self) -> RevMoveBuckets<K, V> {
         let raw_bucket = self.first_bucket_raw();
-        unsafe {
-            RevMoveBuckets {
-                raw: raw_bucket.offset(self.capacity as int),
-                hashes_end: raw_bucket.hash,
-                elems_left: self.size
-            }
+        RevMoveBuckets {
+            raw: raw_bucket.offset(self.capacity as int),
+            hashes_end: raw_bucket.hash,
+            elems_left: self.size
         }
     }
 }
@@ -884,7 +884,9 @@ impl<K, V> Drop for RawTable<K, V> {
         // Check if the size is 0, so we don't do a useless scan when
         // dropping empty tables such as on resize.
         // Also avoid double drop of elements that have been already moved out.
-        for _ in self.rev_move_buckets() {}
+        unsafe {
+            for _ in self.rev_move_buckets() {}
+        }
 
         let hashes_size = self.capacity * size_of::<u64>();
         let keys_size = self.capacity * size_of::<K>();
