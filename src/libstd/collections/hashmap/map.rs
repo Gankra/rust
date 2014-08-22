@@ -64,7 +64,7 @@ impl DefaultResizePolicy {
 
     #[inline]
     fn capacity_range(&self, new_size: uint) -> (uint, uint) {
-        ((new_size * 11) / 10, max(new_size << 3, self.minimum_capacity2))
+        ((new_size * 11) / 10, max(new_size << 2, self.minimum_capacity2))
     }
 
     #[inline]
@@ -76,7 +76,7 @@ impl DefaultResizePolicy {
 // The main performance trick in this hashmap is called Robin Hood Hashing.
 // It gains its excellent performance from one essential operation:
 //
-//    If an insertion collides with an existing element, and that elements
+//    If an insertion collides with an existing element, and that element's
 //    "probe distance" (how far away the element is from its ideal location)
 //    is higher than how far we've already probed, swap the elements.
 //
@@ -257,6 +257,8 @@ fn search_hashed_generic<K, V, M: Deref<RawTable<K, V>>>(table: M,
         };
 
         if full.distance() + ib < full.index() {
+            // We can finish the search early if we hit any bucket
+            // with a lower distance to initial bucket than we've probed.
             return None;
         }
 
@@ -312,6 +314,11 @@ fn pop_internal<K, V>(starting_bucket: FullBucketMut<K, V>) -> V {
     return retval;
 }
 
+/// Perform robin hood bucket stealing at the given `bucket`. You must
+/// also pass the position of that bucket's initial bucket so we don't have
+/// to recalculate it.
+///
+/// `hash`, `k`, and `v` are the elements to "robin hood" into the hashtable.
 fn robin_hood<'a, K, V>(mut bucket: FullBucketMut<'a, K, V>,
                         mut ib: uint,
                         mut hash: SafeHash,
@@ -323,7 +330,10 @@ fn robin_hood<'a, K, V>(mut bucket: FullBucketMut<'a, K, V>,
         let table = bucket.table(); // FIXME "lifetime too short".
         table.size()
     };
-    let idx_end = size + starting_index - bucket.distance();
+    // There can be at most `size - dib` buckets to displace, because
+    // in the worst case, there are `size` elements and we already are
+    // `distance` buckets away from the initial one.
+    let idx_end = starting_index + size - bucket.distance();
 
     loop {
         let (old_hash, old_key, old_val) = bucket.replace(hash, k, v);
@@ -391,6 +401,7 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
         search_hashed(&mut self.table, &hash, k)
     }
 
+    // The caller should ensure that invariants by Robin Hood Hashing hold.
     fn insert_hashed_ordered(&mut self, hash: SafeHash, k: K, v: V) {
         let cap = self.table.capacity();
         let mut buckets = Bucket::new(&mut self.table, &hash);
@@ -646,7 +657,7 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
             // bucket, thus stealing that bucket's spot with the help of Robin
             // Hood.
             //
-            // Theorem 2. Linear reinsertion that starts with the bucket with
+            // Theorem 2. Linear reinsertion that starts with a bucket with
             // DIB = 0 in the old map will never perform robin_hood operation.
             //
             // FIXME: no proof.
@@ -740,8 +751,7 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
     ///
     /// If the key already exists, the hashtable will be returned untouched
     /// and a reference to the existing element will be returned.
-    fn insert_hashed_nocheck<'a>(
-        &'a mut self, hash: SafeHash, k: K, v: V) -> &'a mut V {
+    fn insert_hashed_nocheck(&mut self, hash: SafeHash, k: K, v: V) -> &mut V {
         self.insert_or_replace_with(hash, k, v, |_, _, _| ())
     }
 
@@ -794,7 +804,7 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
     /// Inserts an element which has already been hashed, returning a reference
     /// to that element inside the hashtable. This is more efficient that using
     /// `insert`, since the key will not be rehashed.
-    fn insert_hashed<'a>(&'a mut self, hash: SafeHash, k: K, v: V) -> &'a mut V {
+    fn insert_hashed(&mut self, hash: SafeHash, k: K, v: V) -> &mut V {
         let potential_new_size = self.table.size() + 1;
         self.make_some_room(potential_new_size);
         self.insert_hashed_nocheck(hash, k, v)
@@ -815,7 +825,7 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
     /// // Find the existing key
     /// assert_eq!(*map.find_or_insert("a", -2), 1);
     /// ```
-    pub fn find_or_insert<'a>(&'a mut self, k: K, v: V) -> &'a mut V {
+    pub fn find_or_insert(&mut self, k: K, v: V) -> &mut V {
         self.find_with_or_insert_with(k, v, |_k, _v, _a| (), |_k, a| a)
     }
 
@@ -1096,7 +1106,7 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
     ///     println!("{}", key);
     /// }
     /// ```
-    pub fn keys<'a>(&'a self) -> Keys<'a, K, V> {
+    pub fn keys(&self) -> Keys<K, V> {
         self.iter().map(|(k, _v)| k)
     }
 
@@ -1117,7 +1127,7 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
     ///     println!("{}", key);
     /// }
     /// ```
-    pub fn values<'a>(&'a self) -> Values<'a, K, V> {
+    pub fn values(&self) -> Values<K, V> {
         self.iter().map(|(_k, v)| v)
     }
 
@@ -1138,7 +1148,7 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
     ///     println!("key: {} val: {}", key, val);
     /// }
     /// ```
-    pub fn iter<'a>(&'a self) -> Entries<'a, K, V> {
+    pub fn iter(&self) -> Entries<K, V> {
         Entries { inner: self.table.iter() }
     }
 
@@ -1165,7 +1175,7 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
     ///     println!("key: {} val: {}", key, val);
     /// }
     /// ```
-    pub fn mut_iter<'a>(&'a mut self) -> MutEntries<'a, K, V> {
+    pub fn mut_iter(&mut self) -> MutEntries<K, V> {
         MutEntries { inner: self.table.mut_iter() }
     }
 

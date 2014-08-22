@@ -19,7 +19,7 @@ use mem;
 use num::{CheckedAdd, CheckedMul, is_power_of_two};
 use ops::{Deref, DerefMut, Drop};
 use option::{Some, None, Option};
-use ptr::{RawPtr, copy_nonoverlapping_memory, set_memory};
+use ptr::{RawPtr, copy_nonoverlapping_memory, zero_memory};
 use ptr;
 use rt::heap::{allocate, deallocate};
 
@@ -65,7 +65,7 @@ static EMPTY_BUCKET: u64 = 0u64;
 pub struct RawTable<K, V> {
     capacity: uint,
     size:     uint,
-    hashes:   *mut u64
+    hashes:   *mut u64,
 }
 
 struct RawBucket<K, V> {
@@ -108,9 +108,48 @@ pub enum BucketState<K, V, M> {
 // The second bucket is full.
 struct GapThenFull<K, V, M> {
     gap: EmptyBucket<K, V, ()>,
-    full: FullBucket<K, V, M>
+    full: FullBucket<K, V, M>,
 }
 
+/// A hash that is not zero, since we use a hash of zero to represent empty
+/// buckets.
+#[deriving(PartialEq)]
+pub struct SafeHash {
+    hash: u64,
+}
+
+impl SafeHash {
+    /// Peek at the hash value, which is guaranteed to be non-zero.
+    #[inline(always)]
+    pub fn inspect(&self) -> u64 { self.hash }
+}
+
+/// We need to remove hashes of 0. That's reserved for empty buckets.
+/// This function wraps up `hash_keyed` to be the only way outside this
+/// module to generate a SafeHash.
+pub fn make_hash<T: Hash<S>, S, H: Hasher<S>>(hasher: &H, t: &T) -> SafeHash {
+    match hasher.hash(t) {
+        // This constant is exceedingly likely to hash to the same
+        // bucket, but it won't be counted as empty! Just so we can maintain
+        // our precious uniform distribution of initial indexes.
+        EMPTY_BUCKET => SafeHash { hash: 0x8000_0000_0000_0000 },
+        h            => SafeHash { hash: h },
+    }
+}
+
+// `replace` casts a `*u64` to a `*SafeHash`. Since we statically
+// ensure that a `FullIndex` points to an index with a non-zero hash,
+// and a `SafeHash` is just a `u64` with a different name, this is
+// safe.
+//
+// This test ensures that a `SafeHash` really IS the same size as a
+// `u64`. If you need to change the size of `SafeHash` (and
+// consequently made this test fail), `replace` needs to be
+// modified to no longer assume this.
+#[test]
+fn can_alias_safehash_as_u64() {
+    assert_eq!(size_of::<SafeHash>(), size_of::<u64>())
+}
 
 impl<K, V> RawBucket<K, V> {
     unsafe fn offset(self, count: int) -> RawBucket<K, V> {
@@ -124,19 +163,19 @@ impl<K, V> RawBucket<K, V> {
 
 // For parameterizing over mutability.
 impl<'t, K, V> Deref<RawTable<K, V>> for &'t RawTable<K, V> {
-    fn deref<'a>(&'a self) -> &'a RawTable<K,V> {
+    fn deref(&self) -> &RawTable<K, V> {
         &**self
     }
 }
 
 impl<'t, K, V> Deref<RawTable<K, V>> for &'t mut RawTable<K, V> {
-    fn deref<'a>(&'a self) -> &'a RawTable<K,V> {
+    fn deref(&self) -> &RawTable<K,V> {
         &**self
     }
 }
 
 impl<'t, K, V> DerefMut<RawTable<K, V>> for &'t mut RawTable<K, V> {
-    fn deref_mut<'a>(&'a mut self) -> &'a mut RawTable<K,V> {
+    fn deref_mut(&mut self) -> &mut RawTable<K,V> {
         &mut **self
     }
 }
@@ -144,7 +183,7 @@ impl<'t, K, V> DerefMut<RawTable<K, V>> for &'t mut RawTable<K, V> {
 /// A bucket that holds a reference to the table
 pub trait BucketWithTable<M> {
     /// Borrow a reference to the table.
-    fn table<'a>(&'a self) -> &'a M;
+    fn table(&self) -> &M;
 
     /// Move out the reference to the table.
     fn into_table(self) -> M;
@@ -154,7 +193,7 @@ pub trait BucketWithTable<M> {
 }
 
 impl<K, V, M> BucketWithTable<M> for FullBucket<K, V, M> {
-    fn table<'a>(&'a self) -> &'a M {
+    fn table(&self) -> &M {
         &self.table
     }
 
@@ -168,7 +207,7 @@ impl<K, V, M> BucketWithTable<M> for FullBucket<K, V, M> {
 }
 
 impl<K, V, M> BucketWithTable<M> for EmptyBucket<K, V, M> {
-    fn table<'a>(&'a self) -> &'a M {
+    fn table(&self) -> &M {
         &self.table
     }
 
@@ -182,7 +221,7 @@ impl<K, V, M> BucketWithTable<M> for EmptyBucket<K, V, M> {
 }
 
 impl<K, V, M> BucketWithTable<M> for Bucket<K, V, M> {
-    fn table<'a>(&'a self) -> &'a M {
+    fn table(&self) -> &M {
         &self.table
     }
 
@@ -301,8 +340,8 @@ impl<K, V, M: Deref<RawTable<K, V>>> EmptyBucket<K, V, M> {
 }
 
 impl<K, V, M: DerefMut<RawTable<K, V>>> EmptyBucket<K, V, M> {
-    /// Puts this bucket's key and value pair, along with the key's hash,
-    /// into a given index in the hashtable. Note how `self` is 'moved' into
+    /// Puts given key and value pair, along with the key's hash,
+    /// into this bucket in the hashtable. Note how `self` is 'moved' into
     /// this function, because this slot will no longer be empty when
     /// we return! A `FullBucket` is returned for later use, pointing to
     /// the newly-filled slot in the hashtable.
@@ -339,11 +378,15 @@ impl<K, V, M: Deref<RawTable<K, V>>> FullBucket<K, V, M> {
         }
     }
 
-    /// Get the distance of the bucket that it lies from its 'ideal' location.
+    /// Get the distance between this bucket and the 'ideal' location
+    /// as determined by the key's hash stored in it.
     ///
     /// In the cited blog posts above, this is called the "distance to
     /// initial bucket", or DIB. Also known as "probe count".
     pub fn distance(&self) -> uint {
+        // Calculates the distance one has to travel when going from
+        // `hash mod capacity` onwards to `idx mod capacity`, wrapping around
+        // if the destination is not reached before the end of the table.
         (self.idx - self.hash().inspect() as uint) & (self.table.capacity() - 1)
     }
 
@@ -357,7 +400,7 @@ impl<K, V, M: Deref<RawTable<K, V>>> FullBucket<K, V, M> {
     }
 
     /// Gets references to the key and value at a given index.
-    pub fn read<'a>(&'a self) -> (&'a K, &'a V) {
+    pub fn read(&self) -> (&K, &V) {
         unsafe {
             (&*self.raw.key,
              &*self.raw.val)
@@ -401,7 +444,7 @@ impl<K, V, M: DerefMut<RawTable<K, V>>> FullBucket<K, V, M> {
     }
 
     /// Gets mutable references to the key and value at a given index.
-    pub fn read_mut<'a>(&'a mut self) -> (&'a mut K, &'a mut V) {
+    pub fn read_mut(&mut self) -> (&mut K, &mut V) {
         unsafe {
             (&mut *self.raw.key,
              &mut *self.raw.val)
@@ -410,11 +453,11 @@ impl<K, V, M: DerefMut<RawTable<K, V>>> FullBucket<K, V, M> {
 }
 
 impl<'t, K, V> FullBucket<K, V, &'t RawTable<K, V>> {
-    // Exchange a bucket state for immutable references into the table.
-    // Because the underlying reference to the table is also consumed,
-    // no further changes to the structure of the table are possible;
-    // in exchange for this, the returned references have a longer lifetime
-    // than the references returned by `read()`.
+    /// Exchange a bucket state for immutable references into the table.
+    /// Because the underlying reference to the table is also consumed,
+    /// no further changes to the structure of the table are possible;
+    /// in exchange for this, the returned references have a longer lifetime
+    /// than the references returned by `read()`.
     pub fn into_refs(self) -> (&'t K, &'t V) {
         unsafe {
             (&*self.raw.key,
@@ -424,8 +467,8 @@ impl<'t, K, V> FullBucket<K, V, &'t RawTable<K, V>> {
 }
 
 impl<'t, K, V> FullBucket<K, V, &'t mut RawTable<K, V>> {
-    // This works similarly to `into_refs`, exchanging a bucket state
-    // for mutable references into the table.
+    /// This works similarly to `into_refs`, exchanging a bucket state
+    /// for mutable references into the table.
     pub fn into_mut_refs(self) -> (&'t mut K, &'t mut V) {
         unsafe {
             (&mut *self.raw.key,
@@ -446,7 +489,7 @@ impl<K, V, M> BucketState<K, V, M> {
 
 impl<K, V, M: Deref<RawTable<K, V>>> GapThenFull<K, V, M> {
     #[inline]
-    pub fn full<'a>(&'a self) -> &'a FullBucket<K, V, M> {
+    pub fn full(&self) -> &FullBucket<K, V, M> {
         &self.full
     }
 
@@ -465,7 +508,6 @@ impl<K, V, M: Deref<RawTable<K, V>>> GapThenFull<K, V, M> {
                 self.gap.idx = prev_idx;
 
                 self.full = bucket;
-                self.full.idx &= self.full.table.capacity - 1;
 
                 Some(self)
             }
@@ -474,32 +516,13 @@ impl<K, V, M: Deref<RawTable<K, V>>> GapThenFull<K, V, M> {
     }
 }
 
-/// A hash that is not zero, since we use a hash of zero to represent empty
-/// buckets.
-#[deriving(PartialEq)]
-pub struct SafeHash {
-    hash: u64,
-}
 
-impl SafeHash {
-    /// Peek at the hash value, which is guaranteed to be non-zero.
-    #[inline(always)]
-    pub fn inspect(&self) -> u64 { self.hash }
-}
-
-/// We need to remove hashes of 0. That's reserved for empty buckets.
-/// This function wraps up `hash_keyed` to be the only way outside this
-/// module to generate a SafeHash.
-pub fn make_hash<T: Hash<S>, S, H: Hasher<S>>(hasher: &H, t: &T) -> SafeHash {
-    match hasher.hash(t) {
-        // This constant is exceedingly likely to hash to the same
-        // bucket, but it won't be counted as empty! Just so we can maintain
-        // our precious uniform distribution of initial indexes.
-        EMPTY_BUCKET => SafeHash { hash: 0x8000_0000_0000_0000 },
-        h            => SafeHash { hash: h },
-    }
-}
-
+/// Rounds up to a multiple of a power of two. Returns the closest multiple
+/// of `target_alignment` that is higher or equal to `unrounded`.
+///
+/// # Failure
+///
+/// Fails if `target_alignment` is not a power of two.
 fn round_up_to_next(unrounded: uint, target_alignment: uint) -> uint {
     assert!(is_power_of_two(target_alignment));
     (unrounded + target_alignment - 1) & !(target_alignment - 1)
@@ -530,27 +553,30 @@ fn calculate_offsets(hashes_size: uint,
 }
 
 // Returns a tuple of (minimum required malloc alignment, hash_offset,
-// key_offset, val_offset, array_size), from the start of a mallocated array.
+// array_size), from the start of a mallocated array.
 fn calculate_allocation(hash_size: uint, hash_align: uint,
                         keys_size: uint, keys_align: uint,
                         vals_size: uint, vals_align: uint)
-                        -> (uint, uint, uint, uint, uint) {
+                        -> (uint, uint, uint) {
     let hash_offset = 0;
-    let (keys_offset, vals_offset) = calculate_offsets(hash_size,
-                                                       keys_size, keys_align,
-                                                       vals_align);
+    let (_, vals_offset) = calculate_offsets(hash_size,
+                                             keys_size, keys_align,
+                                                        vals_align);
     let end_of_vals = vals_offset + vals_size;
 
     let min_align = cmp::max(hash_align, cmp::max(keys_align, vals_align));
 
-    (min_align, hash_offset, keys_offset, vals_offset, end_of_vals)
+    (min_align, hash_offset, end_of_vals)
 }
 
 #[test]
 fn test_offset_calculation() {
-    assert_eq!(calculate_allocation(128, 8, 15, 1, 4, 4 ), (8, 0, 128, 144, 148));
-    assert_eq!(calculate_allocation(3,   1, 2,  1, 1, 1 ), (1, 0, 3,   5,   6));
+    assert_eq!(calculate_allocation(128, 8, 15, 1, 4,  4), (8, 0, 128, 144, 148));
+    assert_eq!(calculate_allocation(3,   1, 2,  1, 1,  1), (1, 0, 3,   5,   6));
     assert_eq!(calculate_allocation(6,   2, 12, 4, 24, 8), (8, 0, 8,   24,  48));
+    assert_eq!(calculate_offsets(128, 15, 1, 4), (8, 0, 128, 144, 148));
+    assert_eq!(calculate_offsets(3,   2,  1, 1), (1, 0, 3,   5,   6));
+    assert_eq!(calculate_offsets(6,   12, 4, 8), (8, 0, 8,   24,  48));
 }
 
 impl<K, V> RawTable<K, V> {
@@ -578,15 +604,15 @@ impl<K, V> RawTable<K, V> {
         // This is great in theory, but in practice getting the alignment
         // right is a little subtle. Therefore, calculating offsets has been
         // factored out into a different function.
-        let (malloc_alignment, hash_offset, _, _, size) =
+        let (malloc_alignment, hash_offset, size) =
             calculate_allocation(
                 hashes_size, min_align_of::<u64>(),
                 keys_size,   min_align_of::< K >(),
                 vals_size,   min_align_of::< V >());
 
         // One check for overflow that covers calculation and rounding of size.
-        let size_of_bucket = size_of::<u64>() + size_of::<K>().checked_add(&size_of::<V>())
-                                                              .unwrap();
+        let size_of_bucket = size_of::<u64>().checked_add(&size_of::<K>()).unwrap()
+                                             .checked_add(&size_of::<V>()).unwrap();
         assert!(size >= capacity.checked_mul(&size_of_bucket)
                                 .expect("capacity overflow"),
                 "capacity overflow");
@@ -626,7 +652,7 @@ impl<K, V> RawTable<K, V> {
     pub fn new(capacity: uint) -> RawTable<K, V> {
         unsafe {
             let ret = RawTable::new_uninitialized(capacity);
-            set_memory(ret.hashes, 0u8, capacity);
+            zero_memory(ret.hashes, capacity);
             ret
         }
     }
@@ -642,7 +668,7 @@ impl<K, V> RawTable<K, V> {
         self.size
     }
 
-    fn raw_buckets<'a>(&'a self) -> RawBuckets<'a, K, V> {
+    fn raw_buckets(&self) -> RawBuckets<K, V> {
         RawBuckets {
             raw: self.first_bucket_raw(),
             hashes_end: unsafe {
@@ -651,14 +677,14 @@ impl<K, V> RawTable<K, V> {
         }
     }
 
-    pub fn iter<'a>(&'a self) -> Entries<'a, K, V> {
+    pub fn iter(&self) -> Entries<K, V> {
         Entries {
             iter: self.raw_buckets(),
             elems_left: self.size(),
         }
     }
 
-    pub fn mut_iter<'a>(&'a mut self) -> MutEntries<'a, K, V> {
+    pub fn mut_iter(&mut self) -> MutEntries<K, V> {
         MutEntries {
             iter: self.raw_buckets(),
             elems_left: self.size(),
@@ -684,6 +710,7 @@ impl<K, V> RawTable<K, V> {
     }
 }
 
+/// A raw iterator. The basis for some other iterators.
 pub struct RawBuckets<'a, K, V> {
     raw: RawBucket<K, V>,
     hashes_end: *mut u64
@@ -693,6 +720,8 @@ impl<'a, K, V> Iterator<RawBucket<K, V>> for RawBuckets<'a, K, V> {
     fn next(&mut self) -> Option<RawBucket<K, V>> {
         while self.raw.hash != self.hashes_end {
             unsafe {
+                // We are swapping out the pointer to a bucket and replacing
+                // it with the pointer to the next one.
                 let prev = ptr::replace(&mut self.raw, self.raw.offset(1));
                 if *prev.hash != EMPTY_BUCKET {
                     return Some(prev);
@@ -704,7 +733,8 @@ impl<'a, K, V> Iterator<RawBucket<K, V>> for RawBuckets<'a, K, V> {
     }
 }
 
-// An iterator that moves out buckets in reverse order.
+/// An iterator that moves out buckets in reverse order. Used for dropping
+/// the table's remaining entries.
 pub struct RevMoveBuckets<'a, K, V> {
     raw: RawBucket<K, V>,
     hashes_end: *mut u64,
@@ -733,20 +763,6 @@ impl<'a, K, V> Iterator<(K, V)> for RevMoveBuckets<'a, K, V> {
             }
         }
     }
-}
-
-// `replace` casts a `*u64` to a `*SafeHash`. Since we statically
-// ensure that a `FullIndex` points to an index with a non-zero hash,
-// and a `SafeHash` is just a `u64` with a different name, this is
-// safe.
-//
-// This test ensures that a `SafeHash` really IS the same size as a
-// `u64`. If you need to change the size of `SafeHash` (and
-// consequently made this test fail), `replace` needs to be
-// modified to no longer assume this.
-#[test]
-fn can_alias_safehash_as_u64() {
-    assert_eq!(size_of::<SafeHash>(), size_of::<u64>())
 }
 
 /// Iterator over shared references to entries in a table.
@@ -863,7 +879,7 @@ impl<K, V> Drop for RawTable<K, V> {
         if self.hashes.is_null() {
             return;
         }
-        // This is in reverse because we're likely to have partially taken
+        // This is done in reverse because we've likely partially taken
         // some elements out with `.move_iter()` from the front.
         // Check if the size is 0, so we don't do a useless scan when
         // dropping empty tables such as on resize.
@@ -873,16 +889,14 @@ impl<K, V> Drop for RawTable<K, V> {
         let hashes_size = self.capacity * size_of::<u64>();
         let keys_size = self.capacity * size_of::<K>();
         let vals_size = self.capacity * size_of::<V>();
-        let (align, _, _, _, size) = calculate_allocation(hashes_size, min_align_of::<u64>(),
-                                                          keys_size, min_align_of::<K>(),
-                                                          vals_size, min_align_of::<V>());
+        let (align, _, size) = calculate_allocation(hashes_size, min_align_of::<u64>(),
+                                                    keys_size, min_align_of::<K>(),
+                                                    vals_size, min_align_of::<V>());
 
         unsafe {
             deallocate(self.hashes as *mut u8, size, align);
             // Remember how everything was allocated out of one buffer
             // during initialization? We only need one call to free here.
         }
-
-        self.hashes = RawPtr::null();
     }
 }
