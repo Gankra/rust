@@ -138,7 +138,7 @@ pub fn make_hash<T: Hash<S>, S, H: Hasher<S>>(hasher: &H, t: &T) -> SafeHash {
 }
 
 // `replace` casts a `*u64` to a `*SafeHash`. Since we statically
-// ensure that a `FullIndex` points to an index with a non-zero hash,
+// ensure that a `FullBucket` points to an index with a non-zero hash,
 // and a `SafeHash` is just a `u64` with a different name, this is
 // safe.
 //
