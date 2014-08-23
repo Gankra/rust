@@ -17,7 +17,7 @@ use default::Default;
 use fmt::Show;
 use fmt;
 use hash::{Hash, Hasher, RandomSipHasher};
-use iter::{Iterator, FromIterator, Extendable, range};
+use iter::{Iterator, FromIterator, Extendable};
 use iter;
 use mem::replace;
 use num;
@@ -287,30 +287,20 @@ fn search_hashed<K: Eq, V, M: Deref<RawTable<K, V>>>(table: M, hash: &SafeHash, 
 }
 
 fn pop_internal<K, V>(starting_bucket: FullBucketMut<K, V>) -> V {
-    let size = {
-        let table = starting_bucket.table(); // FIXME "lifetime too short".
-        table.size()
-    };
     let (empty, _k, retval) = starting_bucket.take();
     let mut gap = match empty.gap_peek() {
         Some(b) => b,
         None => return retval
     };
 
-    for _ in range(0, size) {
-        if gap.full().distance() != 0 {
-            gap = match gap.shift() {
-                Some(b) => b,
-                None => return retval
-            };
-            continue;
-        }
-
-        break;
+    while gap.full().distance() != 0 {
+        gap = match gap.shift() {
+            Some(b) => b,
+            None => break
+        };
     }
 
-    // Now we're done all our shifting. Return the value we grabbed
-    // earlier.
+    // Now we've done all our shifting. Return the value we grabbed earlier.
     return retval;
 }
 
