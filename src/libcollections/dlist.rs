@@ -604,7 +604,7 @@ impl<'a, A> Iterator<&'a A> for Items<'a, A> {
             return None;
         }
         unsafe {
-            self.head.resolve_immut().as_ref().map(|head| {
+            self.head.resolve_immut().map(|head| {
                 self.nelem -= 1;
                 self.head = as_raw(&head.next);
                 &head.value
@@ -625,7 +625,7 @@ impl<'a, A> DoubleEndedIterator<&'a A> for Items<'a, A> {
             return None;
         }
         unsafe {
-            self.tail.resolve_immut().as_ref().map(|tail| {
+            self.tail.resolve_immut().map(|tail| {
                 self.nelem -= 1;
                 self.tail = tail.prev;
                 &tail.value
@@ -635,6 +635,37 @@ impl<'a, A> DoubleEndedIterator<&'a A> for Items<'a, A> {
 }
 
 impl<'a, A> ExactSize<&'a A> for Items<'a, A> {}
+
+impl<'a, A> Items<'a, A> {
+    #[inline]
+    pub fn prev(&mut self) -> Option<&'a A> {
+        unsafe {
+            self.head.resolve_immut().map(|head| {
+                let prev_raw = head.prev;
+                prev_raw.resolve_immut().map(|prev| {
+                    self.head = prev_raw;
+                    self.nelem += 1;
+                    &prev.value
+                }
+            })
+        }
+    }
+
+    #[inline]
+    pub fn prev_back(&mut self) -> Option<&'a A> {
+        unsafe {
+            self.tail.resolve_immut().map(|tail| {
+                let prev_raw = as_raw(&tail.next);
+                prev_raw.resolve_immut().map(|prev| {
+                    self.tail = prev_raw;
+                    self.nelem += 1;
+                    &prev.value
+                }
+            })
+        }
+    }
+}
+
 
 // private methods
 impl <'a, A> MutItems<'a, A> {
