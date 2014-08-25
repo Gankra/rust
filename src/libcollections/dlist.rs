@@ -646,7 +646,7 @@ impl<'a, A> Items<'a, A> {
                     self.head = prev_raw;
                     self.nelem += 1;
                     &prev.value
-                }
+                })
             })
         }
     }
@@ -660,7 +660,7 @@ impl<'a, A> Items<'a, A> {
                     self.tail = prev_raw;
                     self.nelem += 1;
                     &prev.value
-                }
+                })
             })
         }
     }
