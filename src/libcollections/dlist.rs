@@ -640,7 +640,7 @@ impl<'a, A> Items<'a, A> {
     #[inline]
     pub fn prev(&mut self) -> Option<&'a A> {
         unsafe {
-            self.head.resolve_immut().map(|head| {
+            self.head.resolve_immut().and_then(|head| {
                 let prev_raw = head.prev;
                 prev_raw.resolve_immut().map(|prev| {
                     self.head = prev_raw;
@@ -654,7 +654,7 @@ impl<'a, A> Items<'a, A> {
     #[inline]
     pub fn prev_back(&mut self) -> Option<&'a A> {
         unsafe {
-            self.tail.resolve_immut().map(|tail| {
+            self.tail.resolve_immut().and_then(|tail| {
                 let prev_raw = as_raw(&tail.next);
                 prev_raw.resolve_immut().map(|prev| {
                     self.tail = prev_raw;
