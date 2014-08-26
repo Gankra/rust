@@ -14,6 +14,7 @@ pub use self::map::HashMap;
 pub use self::map::Entries;
 pub use self::map::MutEntries;
 pub use self::map::MoveEntries;
+pub use self::map::Entry;
 pub use self::map::Keys;
 pub use self::map::Values;
 pub use self::map::INITIAL_CAPACITY;
