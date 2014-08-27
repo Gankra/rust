@@ -23,7 +23,7 @@ use mem::replace;
 use num;
 use ops::Deref;
 use option::{Some, None, Option};
-use result::{Ok, Err};
+use result::{Result, Ok, Err};
 use ops::Index;
 
 use super::table;
@@ -245,21 +245,21 @@ pub struct HashMap<K, V, H = RandomSipHasher> {
 fn search_hashed_generic<K, V, M: Deref<RawTable<K, V>>>(table: M,
                                                          hash: &SafeHash,
                                                          is_match: |&K| -> bool)
-                                                         -> Option<FullBucket<K, V, M>> {
+                                                         -> Result<FullBucket<K, V, M>,M> {
     let size = table.size();
     let mut probe = Bucket::new(table, hash);
     let ib = probe.index();
 
     while probe.index() != ib + size {
         let full = match probe.peek() {
-            Empty(..) => return None, // hit an empty bucket
+            Empty(b) => return Err(b.into_table()), // hit an empty bucket
             Full(b) => b
         };
 
         if full.distance() + ib < full.index() {
             // We can finish the search early if we hit any bucket
             // with a lower distance to initial bucket than we've probed.
-            return None;
+            return Err(full.into_table());
         }
 
         // If the hash doesn't match, it can't be this one..
@@ -271,18 +271,18 @@ fn search_hashed_generic<K, V, M: Deref<RawTable<K, V>>>(table: M,
 
             // If the key doesn't match, it can't be this one..
             if matched {
-                return Some(full);
+                return Ok(full);
             }
         }
 
         probe = full.next();
     }
 
-    None
+    Err(probe.into_table())
 }
 
 fn search_hashed<K: Eq, V, M: Deref<RawTable<K, V>>>(table: M, hash: &SafeHash, k: &K)
-                                                     -> Option<FullBucket<K, V, M>> {
+                                                     -> Result<FullBucket<K, V, M>,M> {
     search_hashed_generic(table, hash, |k_| *k == *k_)
 }
 
@@ -369,13 +369,13 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
     fn search_equiv<'a, Q: Hash<S> + Equiv<K>>(&'a self, q: &Q)
                     -> Option<FullBucketImm<'a, K, V>> {
         let hash = self.make_hash(q);
-        search_hashed_generic(&self.table, &hash, |k| q.equiv(k))
+        search_hashed_generic(&self.table, &hash, |k| q.equiv(k)).ok()
     }
 
     fn search_equiv_mut<'a, Q: Hash<S> + Equiv<K>>(&'a mut self, q: &Q)
                     -> Option<FullBucketMut<'a, K, V>> {
         let hash = self.make_hash(q);
-        search_hashed_generic(&mut self.table, &hash, |k| q.equiv(k))
+        search_hashed_generic(&mut self.table, &hash, |k| q.equiv(k)).ok()
     }
 
     /// Search for a key, yielding the index if it's found in the hashtable.
@@ -383,12 +383,12 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
     /// search_hashed.
     fn search<'a>(&'a self, k: &K) -> Option<FullBucketImm<'a, K, V>> {
         let hash = self.make_hash(k);
-        search_hashed(&self.table, &hash, k)
+        search_hashed(&self.table, &hash, k).ok()
     }
 
     fn search_mut<'a>(&'a mut self, k: &K) -> Option<FullBucketMut<'a, K, V>> {
         let hash = self.make_hash(k);
-        search_hashed(&mut self.table, &hash, k)
+        search_hashed(&mut self.table, &hash, k).ok()
     }
 
     // The caller should ensure that invariants by Robin Hood Hashing hold.
@@ -742,7 +742,7 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
     /// If the key already exists, the hashtable will be returned untouched
     /// and a reference to the existing element will be returned.
     fn insert_hashed_nocheck(&mut self, hash: SafeHash, k: K, v: V) -> &mut V {
-        self.insert_or_replace_with(hash, k, v, |_, _, _| ())
+        insert_hashed_nocheck(&mut self.table, hash, k, v)
     }
 
     fn insert_or_replace_with<'a>(&'a mut self,
@@ -751,46 +751,7 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
                                   v: V,
                                   found_existing: |&mut K, &mut V, V|)
                                   -> &'a mut V {
-        // Worst case, we'll find one empty bucket among `size + 1` buckets.
-        let size = self.table.size();
-        let mut probe = Bucket::new(&mut self.table, &hash);
-        let ib = probe.index();
-
-        loop {
-            let mut bucket = match probe.peek() {
-                Empty(bucket) => {
-                    // Found a hole!
-                    let bucket = bucket.put(hash, k, v);
-                    let (_, val) = bucket.into_mut_refs();
-                    return val;
-                },
-                Full(bucket) => bucket
-            };
-
-            if bucket.hash() == hash {
-                let found_match = {
-                    let (bucket_k, _) = bucket.read_mut();
-                    k == *bucket_k
-                };
-                if found_match {
-                    let (bucket_k, bucket_v) = bucket.into_mut_refs();
-                    debug_assert!(k == *bucket_k);
-                    // Key already exists. Get its reference.
-                    found_existing(bucket_k, bucket_v, v);
-                    return bucket_v;
-                }
-            }
-
-            let robin_ib = bucket.index() as int - bucket.distance() as int;
-
-            if (ib as int) < robin_ib {
-                // Found a luckier bucket than me. Better steal his spot.
-                return robin_hood(bucket, robin_ib as uint, hash, k, v);
-            }
-
-            probe = bucket.next();
-            assert!(probe.index() != ib + size + 1);
-        }
+        insert_or_replace_with(&mut self.table, hash, k, v, found_existing)
     }
 
     /// Inserts an element which has already been hashed, returning a reference
@@ -920,23 +881,27 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
                                            a: A,
                                            found: |&K, &mut V, A|,
                                            not_found: |&K, A| -> V)
-                                          -> &'a mut V {
+                                          -> &'a mut V
+    {
         let hash = self.make_hash(&k);
-        {
-            match search_hashed(&mut self.table, &hash, &k) {
-                Some(bucket) => {
-                    let (_, v_ref) = bucket.into_mut_refs();
-                    found(&k, v_ref, a);
-                    // FIXME cannot borrow `*self` as mutable more than once at a time
-                    let vr: *mut V = v_ref;
-                    return unsafe {&mut *vr};
-                    // Maybe this lifetime is tied to other one obtained below.
-                }
-                _ => {}
-            };
-        };
-        let v = not_found(&k, a);
-        self.insert_hashed(hash, k, v)
+
+        // FIXME -- better to do this only on the Err path, but we'd
+        // have to make make_some_room a free fn
+        let potential_new_size = self.table.size() + 1;
+        self.make_some_room(potential_new_size);
+
+        match search_hashed(&mut self.table, &hash, &k) {
+            Ok(bucket) => {
+                let (_, v_ref) = bucket.into_mut_refs();
+                found(&k, v_ref, a);
+                return v_ref;
+            }
+            Err(table) => {
+                let v = not_found(&k, a);
+
+                insert_hashed_nocheck(table, hash, k, v)
+            }
+        }
     }
 
     /// Retrieves a value for the given key.
@@ -1228,6 +1193,72 @@ impl<K: Eq + Hash<S>, V: Clone, S, H: Hasher<S>> HashMap<K, V, H> {
     /// ```
     pub fn get_copy(&self, k: &K) -> V {
         (*self.get(k)).clone()
+    }
+}
+
+/// Insert a pre-hashed key-value pair, without first checking
+/// that there's enough room in the buckets. Returns a reference to the
+/// newly insert value.
+///
+/// If the key already exists, the hashtable will be returned untouched
+/// and a reference to the existing element will be returned.
+fn insert_hashed_nocheck<K: Eq + Hash<S>, V, S>(
+    table: &mut RawTable<K,V>,
+    hash: SafeHash,
+    k: K,
+    v: V)
+    -> &mut V
+{
+    insert_or_replace_with(table, hash, k, v, |_, _, _| ())
+}
+
+fn insert_or_replace_with<'a, K: Eq + Hash<S>, V, S>(
+    table: &'a mut RawTable<K,V>,
+    hash: SafeHash,
+    k: K,
+    v: V,
+    found_existing: |&mut K, &mut V, V|)
+    -> &'a mut V
+{
+    // Worst case, we'll find one empty bucket among `size + 1` buckets.
+    let size = table.size();
+    let mut probe = Bucket::new(table, &hash);
+    let ib = probe.index();
+
+    loop {
+        let mut bucket = match probe.peek() {
+            Empty(bucket) => {
+                // Found a hole!
+                let bucket = bucket.put(hash, k, v);
+                let (_, val) = bucket.into_mut_refs();
+                return val;
+            },
+            Full(bucket) => bucket
+        };
+
+        if bucket.hash() == hash {
+            let found_match = {
+                let (bucket_k, _) = bucket.read_mut();
+                k == *bucket_k
+            };
+            if found_match {
+                let (bucket_k, bucket_v) = bucket.into_mut_refs();
+                debug_assert!(k == *bucket_k);
+                // Key already exists. Get its reference.
+                found_existing(bucket_k, bucket_v, v);
+                return bucket_v;
+            }
+        }
+
+        let robin_ib = bucket.index() as int - bucket.distance() as int;
+
+        if (ib as int) < robin_ib {
+            // Found a luckier bucket than me. Better steal his spot.
+            return robin_hood(bucket, robin_ib as uint, hash, k, v);
+        }
+
+        probe = bucket.next();
+        assert!(probe.index() != ib + size + 1);
     }
 }
 
