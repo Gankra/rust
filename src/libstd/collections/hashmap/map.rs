@@ -768,14 +768,16 @@ impl<K: Eq + Hash<S>, V, S, H: Hasher<S>> HashMap<K, V, H> {
             };
 
             if bucket.hash() == hash {
-                let (bucket_k, bucket_v) = bucket.read_mut();
-                // FIXME #12147 the conditional return confuses
-                // borrowck if we return bucket_v directly
-                let bv: *mut V = bucket_v;
-                if k == *bucket_k {
+                let found_match = {
+                    let (bucket_k, _) = bucket.read_mut();
+                    k == *bucket_k
+                };
+                if found_match {
+                    let (bucket_k, bucket_v) = bucket.into_mut_refs();
+                    debug_assert!(k == *bucket_k);
                     // Key already exists. Get its reference.
                     found_existing(bucket_k, bucket_v, v);
-                    return unsafe {&mut *bv};
+                    return bucket_v;
                 }
             }
 
