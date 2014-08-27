@@ -710,8 +710,9 @@ impl<K, V> RawTable<K, V> {
     }
 }
 
-/// A raw iterator. The basis for some other iterators.
-pub struct RawBuckets<'a, K, V> {
+/// A raw iterator. The basis for some other iterators in this module. Although
+/// this interface is safe, it's not used outside this module.
+struct RawBuckets<'a, K, V> {
     raw: RawBucket<K, V>,
     hashes_end: *mut u64
 }
