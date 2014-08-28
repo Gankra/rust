@@ -452,7 +452,7 @@ impl<K, V, M: DerefMut<RawTable<K, V>>> FullBucket<K, V, M> {
     }
 }
 
-impl<'t, K, V> FullBucket<K, V, &'t RawTable<K, V>> {
+impl<'t, K, V, M: Deref<RawTable<K, V>>> FullBucket<K, V, M> {
     /// Exchange a bucket state for immutable references into the table.
     /// Because the underlying reference to the table is also consumed,
     /// no further changes to the structure of the table are possible;
@@ -466,7 +466,7 @@ impl<'t, K, V> FullBucket<K, V, &'t RawTable<K, V>> {
     }
 }
 
-impl<'t, K, V> FullBucket<K, V, &'t mut RawTable<K, V>> {
+impl<'t, K, V, M: DerefMut<RawTable<K, V>>> FullBucket<K, V, M> {
     /// This works similarly to `into_refs`, exchanging a bucket state
     /// for mutable references into the table.
     pub fn into_mut_refs(self) -> (&'t mut K, &'t mut V) {
