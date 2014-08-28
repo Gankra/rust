@@ -571,12 +571,12 @@ fn calculate_allocation(hash_size: uint, hash_align: uint,
 
 #[test]
 fn test_offset_calculation() {
-    assert_eq!(calculate_allocation(128, 8, 15, 1, 4,  4), (8, 0, 128, 144, 148));
-    assert_eq!(calculate_allocation(3,   1, 2,  1, 1,  1), (1, 0, 3,   5,   6));
-    assert_eq!(calculate_allocation(6,   2, 12, 4, 24, 8), (8, 0, 8,   24,  48));
-    assert_eq!(calculate_offsets(128, 15, 1, 4), (8, 0, 128, 144, 148));
-    assert_eq!(calculate_offsets(3,   2,  1, 1), (1, 0, 3,   5,   6));
-    assert_eq!(calculate_offsets(6,   12, 4, 8), (8, 0, 8,   24,  48));
+    assert_eq!(calculate_allocation(128, 8, 15, 1, 4,  4), (8, 0, 148));
+    assert_eq!(calculate_allocation(3,   1, 2,  1, 1,  1), (1, 0, 6));
+    assert_eq!(calculate_allocation(6,   2, 12, 4, 24, 8), (8, 0, 48));
+    assert_eq!(calculate_offsets(128, 15, 1, 4), (128, 144));
+    assert_eq!(calculate_offsets(3,   2,  1, 1), (3,   5));
+    assert_eq!(calculate_offsets(6,   12, 4, 8), (8,   24));
 }
 
 impl<K, V> RawTable<K, V> {
