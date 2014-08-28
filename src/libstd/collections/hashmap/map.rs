@@ -1889,6 +1889,7 @@ mod test_map {
             m.insert(i, i);
             i += 1;
         }
+        // three quarters full
 
         assert_eq!(m.len(), i);
         assert_eq!(m.table.capacity(), cap);
@@ -1897,16 +1898,18 @@ mod test_map {
             m.insert(i, i);
             i += 1;
         }
+        // half full
 
         let new_cap = m.table.capacity();
         assert_eq!(new_cap, cap * 2);
 
-        for _ in range(0, cap / 2) {
+        for _ in range(0, cap / 2 - 1) {
             i -= 1;
             m.remove(&i);
             assert_eq!(m.table.capacity(), new_cap);
         }
-
+        // A little more than one quarter full.
+        // Shrinking starts as we remove more elements:
         for _ in range(0, cap / 2 - 1) {
             i -= 1;
             m.remove(&i);
