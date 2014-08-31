@@ -19,7 +19,7 @@ use alloc::boxed::Box;
 use vec::Vec;
 use core::mem;
 use core::iter::range_inclusive;
-use {Mutable, MutableMap, Map};
+use {Mutable, MutableMap, Map, MutableSeq};
 
 /// "Order" of the B-tree, from which all other properties are derived
 static B: uint = 6;
