@@ -105,6 +105,8 @@ struct MyOpaque {
     dfltblk: extern "C" fn(*mut hoedown_buffer, *const hoedown_buffer,
                            *const hoedown_buffer, *mut libc::c_void),
     toc_builder: Option<TocBuilder>,
+    math_enabled: bool,
+    math_seen: bool,
 }
 
 #[repr(C)]
@@ -170,6 +172,7 @@ local_data_key!(test_idx: Cell<uint>)
 // None == render an example, but there's no crate name
 local_data_key!(pub playground_krate: Option<String>)
 local_data_key!(pub use_mathjax: bool)
+local_data_key!(pub math_seen: bool)
 
 pub fn render(w: &mut fmt::Formatter, s: &str, print_toc: bool) -> fmt::Result {
     extern fn block(ob: *mut hoedown_buffer, text: *const hoedown_buffer,
@@ -293,16 +296,48 @@ pub fn render(w: &mut fmt::Formatter, s: &str, print_toc: bool) -> fmt::Result {
         text.with_c_str(|p| unsafe { hoedown_buffer_puts(ob, p) });
     }
 
+    extern fn math(ob: *mut hoedown_buffer, text: *const hoedown_buffer,
+                   display_mode: libc::c_int, opaque: *mut libc::c_void) -> libc::c_int {
+
+        let opaque = opaque as *mut hoedown_html_renderer_state;
+        let opaque = unsafe { &mut *((*opaque).opaque as *mut MyOpaque) };
+
+        opaque.math_seen = true;
+
+        let (open, close) = if !opaque.math_enabled {
+            ("$$", "$$")
+        } else if displaymode == 1 {
+            ("\\[", "\\]")
+        } else {
+            ("\\(", "\\)")
+        };
+
+        open.with_c_str(|open| {
+            close.with_c_str(|close| {
+                unsafe {
+                    hoedown_buffer_puts(ob, open, 2);
+                    escape_html(ob, (*text).data, (*text).size);
+                    hoedown_buffer_puts(ob, close, 2);
+                }
+            })
+        });
+
+        1
+    }
+
     unsafe {
         let ob = hoedown_buffer_new(DEF_OUNIT);
         let renderer = hoedown_html_renderer_new(0, 0);
         let mut opaque = MyOpaque {
             dfltblk: (*renderer).blockcode.unwrap(),
-            toc_builder: if print_toc {Some(TocBuilder::new())} else {None}
+            toc_builder: if print_toc {Some(TocBuilder::new())} else {None},
+            math_enabled: use_mathjax.get().map_or(false, |x| *x),
+            math_seen: false,
         };
         (*(*renderer).opaque).opaque = &mut opaque as *mut _ as *mut libc::c_void;
         (*renderer).blockcode = Some(block);
         (*renderer).header = Some(header);
+        (*renderer).math = Some(math);
 
         let document = hoedown_document_new(renderer, hoedown_extensions(), 16);
         hoedown_document_render(document, ob, s.as_ptr(),
@@ -322,6 +357,10 @@ pub fn render(w: &mut fmt::Formatter, s: &str, print_toc: bool) -> fmt::Result {
             });
         }
         hoedown_buffer_free(ob);
+
+        let old = math_seen.get().map_or(false, |x| *x);
+        math_seen.replace(Some(old || opaque.math_seen));
+
         ret
     }
 }
