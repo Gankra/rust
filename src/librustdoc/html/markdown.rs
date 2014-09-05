@@ -140,7 +140,10 @@ extern {
     fn hoedown_buffer_new(unit: libc::size_t) -> *mut hoedown_buffer;
     fn hoedown_buffer_puts(b: *mut hoedown_buffer, c: *const libc::c_char);
     fn hoedown_buffer_free(b: *mut hoedown_buffer);
-
+    fn hoedown_escape_html(ob: *mut hoedown_buffer,
+                           src: *const uint8_t,
+                           size: libc::size_t,
+                           secure: libc::c_int);
 }
 
 /// Returns Some(code) if `s` is a line that should be stripped from
@@ -316,7 +319,7 @@ pub fn render(w: &mut fmt::Formatter, s: &str, print_toc: bool) -> fmt::Result {
             close.with_c_str(|close| {
                 unsafe {
                     hoedown_buffer_puts(ob, open, 2);
-                    escape_html(ob, (*text).data, (*text).size);
+                    hoedown_escape_html(ob, (*text).data, (*text).size, 0);
                     hoedown_buffer_puts(ob, close, 2);
                 }
             })
