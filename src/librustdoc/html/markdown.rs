@@ -81,7 +81,7 @@ struct hoedown_renderer {
     header: Option<extern "C" fn(*mut hoedown_buffer, *const hoedown_buffer,
                                  libc::c_int, *mut libc::c_void)>,
     math: Option<extern "C" fn(*mut hoedown_buffer, *const hoedown_buffer,
-                                 libc::c_int, *mut libc::c_void) -> int>,
+                                 libc::c_int, *mut libc::c_void) -> libc::c_int>,
     other: [libc::size_t, ..28],
 }
 
