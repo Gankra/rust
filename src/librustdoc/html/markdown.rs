@@ -141,6 +141,8 @@ extern {
 
     fn hoedown_buffer_new(unit: libc::size_t) -> *mut hoedown_buffer;
     fn hoedown_buffer_puts(b: *mut hoedown_buffer, c: *const libc::c_char);
+    fn hoedown_buffer_put(b: *mut hoedown_buffer, data: *const libc::c_void, len: libc::size_t);
+
     fn hoedown_buffer_free(b: *mut hoedown_buffer);
     fn hoedown_escape_html(ob: *mut hoedown_buffer,
                            src: *const libc::uint8_t,
