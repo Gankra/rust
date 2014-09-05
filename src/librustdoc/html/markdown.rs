@@ -202,6 +202,9 @@ pub fn render(w: &mut fmt::Formatter, s: &str, print_toc: bool) -> fmt::Result {
                     size: text.len() as libc::size_t,
                     asize: text.len() as libc::size_t,
                     unit: 0,
+                    data_free: None,
+                    data_realloc: None,
+                    buffer_free: None,
                 };
                 let rendered = if lang.is_null() {
                     false
@@ -322,9 +325,9 @@ pub fn render(w: &mut fmt::Formatter, s: &str, print_toc: bool) -> fmt::Result {
         open.with_c_str(|open| {
             close.with_c_str(|close| {
                 unsafe {
-                    hoedown_buffer_put(ob, open, 2);
+                    hoedown_buffer_put(ob, open as *const libc::c_void, 2);
                     hoedown_escape_html(ob, (*text).data, (*text).size, 0);
-                    hoedown_buffer_put(ob, close, 2);
+                    hoedown_buffer_put(ob, close as *const libc::c_void, 2);
                 }
             })
         });
