@@ -81,7 +81,7 @@ struct hoedown_renderer {
     header: Option<extern "C" fn(*mut hoedown_buffer, *const hoedown_buffer,
                                  libc::c_int, *mut libc::c_void)>,
     math: Option<extern "C" fn(*mut hoedown_buffer, *const hoedown_buffer,
-                                 libc::c_int, *mut libc::c_void)>,
+                                 libc::c_int, *mut libc::c_void) -> int>,
     other: [libc::size_t, ..28],
 }
 
@@ -320,9 +320,9 @@ pub fn render(w: &mut fmt::Formatter, s: &str, print_toc: bool) -> fmt::Result {
         open.with_c_str(|open| {
             close.with_c_str(|close| {
                 unsafe {
-                    hoedown_buffer_puts(ob, open, 2);
+                    hoedown_buffer_put(ob, open, 2);
                     hoedown_escape_html(ob, (*text).data, (*text).size, 0);
-                    hoedown_buffer_puts(ob, close, 2);
+                    hoedown_buffer_put(ob, close, 2);
                 }
             })
         });
