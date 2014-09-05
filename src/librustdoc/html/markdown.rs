@@ -306,7 +306,7 @@ pub fn render(w: &mut fmt::Formatter, s: &str, print_toc: bool) -> fmt::Result {
 
         let (open, close) = if !opaque.math_enabled {
             ("$$", "$$")
-        } else if displaymode == 1 {
+        } else if display_mode == 1 {
             ("\\[", "\\]")
         } else {
             ("\\(", "\\)")
