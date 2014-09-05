@@ -12,7 +12,7 @@ use std::fmt;
 use std::io;
 
 use externalfiles::ExternalHtml;
-use html::markdown
+use html::markdown;
 
 #[deriving(Clone)]
 pub struct Layout {
