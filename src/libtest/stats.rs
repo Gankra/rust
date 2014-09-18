@@ -445,7 +445,7 @@ pub fn freq_count<T: Iterator<U>, U: Eq+Hash>(mut iter: T) -> hashmap::HashMap<U
     let mut map: hashmap::HashMap<U,uint> = hashmap::HashMap::new();
     for elem in iter {
         match map.entry(elem) {
-            Occupied(entry) => { *entry.get_mut() += 1; },
+            Occupied(mut entry) => { *entry.get_mut() += 1; },
             Vacant(entry) => { entry.set(1); },
         }
     }
