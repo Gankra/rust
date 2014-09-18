@@ -1000,7 +1000,7 @@ impl DocFolder for Cache {
 
                         match did {
                             Some(did) => {
-                                let v = self.impls.entry(did) {
+                                let v = match self.impls.entry(did) {
                                     Vacant(entry) => entry.set(Vec::with_capacity(1)),
                                     Occupied(entry) => entry.into_mut(),
                                 };
