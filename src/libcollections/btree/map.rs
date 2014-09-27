@@ -541,13 +541,15 @@ mod stack {
                             // Walk into the smallest subtree of this node
                             let node = temp_node;
                             let node_ptr = node as *mut _;
-                            self.stack.push((node_ptr, 0));
+
                             if node.is_leaf() {
                                 // This node is a leaf, do the swap and return
+                                self.top = (node_ptr, 0);
                                 node.unsafe_swap(0, &mut *key_ptr, &mut *val_ptr);
                                 break;
                             } else {
                                 // This node is internal, go deeper
+                                self.stack.push((node_ptr, 0));
                                 temp_node = node.unsafe_edge_mut(0);
                             }
                         }
