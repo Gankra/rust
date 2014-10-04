@@ -87,12 +87,14 @@ pub struct OccupiedEntry<'a, K:'a, V:'a> {
 
 impl<K: Ord, V> BTreeMap<K, V> {
     /// Makes a new empty BTreeMap with a reasonable choice for B.
+    #[inline]
     pub fn new() -> BTreeMap<K, V> {
         //FIXME(Gankro): Tune this as a function of size_of<K/V>?
         BTreeMap::with_b(6)
     }
 
     /// Makes a new empty BTreeMap with the given B.
+    #[inline]
     pub fn with_b(b: uint) -> BTreeMap<K, V> {
         assert!(b > 1, "B must be greater than 1");
         BTreeMap {
@@ -112,6 +114,7 @@ impl<K: Ord, V> Map<K, V> for BTreeMap<K, V> {
     // the search key. If no such key exists (they're *all* smaller), then just take the last
     // edge in the node. If we're in a leaf and we don't find our key, then it's not
     // in the tree.
+    #[inline]
     fn find(&self, key: &K) -> Option<&V> {
         let mut cur_node = &self.root;
         loop {
@@ -131,6 +134,7 @@ impl<K: Ord, V> Map<K, V> for BTreeMap<K, V> {
 
 impl<K: Ord, V> MutableMap<K, V> for BTreeMap<K, V> {
     // See `find` for implementation notes, this is basically a copy-paste with mut's added
+    #[inline]
     fn find_mut(&mut self, key: &K) -> Option<&mut V> {
         // temp_node is a Borrowck hack for having a mutable value outlive a loop iteration
         let mut temp_node = &mut self.root;
@@ -174,7 +178,7 @@ impl<K: Ord, V> MutableMap<K, V> for BTreeMap<K, V> {
     //
     // 2) While ODS may potentially return the pair we *just* inserted after
     // the split, we will never do this. Again, this shouldn't effect the analysis.
-
+    #[inline]
     fn swap(&mut self, key: K, mut value: V) -> Option<V> {
         // This is a stack of rawptrs to nodes paired with indices, respectively
         // representing the nodes and edges of our search path. We have to store rawptrs
@@ -257,7 +261,7 @@ impl<K: Ord, V> MutableMap<K, V> for BTreeMap<K, V> {
     //      Merging may cause the parent to underflow. If this is the case, then we must repeat
     //      the underflow handling process on the parent. If merging merges the last two children
     //      of the root, then we replace the root with the merged node.
-
+    #[inline]
     fn pop(&mut self, key: &K) -> Option<V> {
         // See `swap` for a more thorough description of the stuff going on in here
         let mut stack = stack::PartialSearchStack::new(self);
@@ -320,6 +324,7 @@ mod stack {
     impl<'a, K, V> PartialSearchStack<'a, K, V> {
         /// Creates a new PartialSearchStack from a BTreeMap by initializing the stack with the
         /// root of the tree.
+        #[inline]
         pub fn new<'a>(map: &'a mut BTreeMap<K, V>) -> PartialSearchStack<'a, K, V> {
             let depth = map.depth;
 
@@ -333,6 +338,7 @@ mod stack {
         /// Pushes the requested child of the stack's current top on top of the stack. If the child
         /// exists, then a new PartialSearchStack is yielded. Otherwise, a full SearchStack is
         /// yielded.
+        #[inline]
         pub fn push(self, edge: uint) -> PushResult<'a, K, V> {
             let map = self.map;
             let mut stack = self.stack;
@@ -359,6 +365,7 @@ mod stack {
         }
 
         /// Converts the stack into a mutable reference to its top.
+        #[inline]
         pub fn into_next(self) -> &'a mut Node<K, V> {
             unsafe {
                 &mut *self.next
@@ -366,6 +373,7 @@ mod stack {
         }
 
         /// Gets the top of the stack.
+        #[inline]
         pub fn next(&self) -> &Node<K, V> {
             unsafe {
                 &*self.next
@@ -373,6 +381,7 @@ mod stack {
         }
 
         /// Converts the PartialSearchStack into a SearchStack.
+        #[inline]
         pub fn seal(self, index: uint) -> SearchStack<'a, K, V> {
             SearchStack {
                 map: self.map,
@@ -384,6 +393,7 @@ mod stack {
 
     impl<'a, K, V> SearchStack<'a, K, V> {
         /// Gets a reference to the value the stack points to.
+        #[inline]
         pub fn peek(&self) -> &V {
             let (node_ptr, index) = self.top;
             unsafe {
@@ -392,6 +402,7 @@ mod stack {
         }
 
         /// Gets a mutable reference to the value the stack points to.
+        #[inline]
         pub fn peek_mut(&mut self) -> &mut V {
             let (node_ptr, index) = self.top;
             unsafe {
@@ -401,6 +412,7 @@ mod stack {
 
         /// Converts the stack into a mutable reference to the value it points to, with a lifetime
         /// tied to the original tree.
+        #[inline]
         pub fn into_top(self) -> &'a mut V {
             let (node_ptr, index) = self.top;
             unsafe {
@@ -415,6 +427,7 @@ mod stack {
         /// Assumes that the stack represents a search path from the root to a leaf.
         ///
         /// An &mut V is returned to the inserted value, for callers that want a reference to this.
+        #[inline]
         pub fn insert(self, key: K, val: V) -> &'a mut V {
             unsafe {
                 let map = self.map;
@@ -459,6 +472,7 @@ mod stack {
 
         /// Removes the key and value in the top element of the stack, then handles underflows as
         /// described in BTree's pop function.
+        #[inline]
         pub fn remove(mut self) -> V {
             // Ensure that the search stack goes to a leaf. This is necessary to perform deletion
             // in a BTree. Note that this may put the tree in an inconsistent state (further
@@ -519,6 +533,7 @@ mod stack {
         /// leaves the tree in an inconsistent state that must be repaired by the caller by
         /// removing the entry in question. Specifically the key-value pair and its successor will
         /// become swapped.
+        #[inline]
         fn leafify(&mut self) {
             unsafe {
                 let (node_ptr, index) = self.top;
@@ -561,12 +576,14 @@ mod stack {
 }
 
 impl<K, V> Collection for BTreeMap<K, V> {
+    #[inline]
     fn len(&self) -> uint {
         self.length
     }
 }
 
 impl<K: Ord, V> Mutable for BTreeMap<K, V> {
+    #[inline]
     fn clear(&mut self) {
         let b = self.b;
         // avoid recursive destructors by manually traversing the tree
@@ -575,6 +592,7 @@ impl<K: Ord, V> Mutable for BTreeMap<K, V> {
 }
 
 impl<K: Ord, V> FromIterator<(K, V)> for BTreeMap<K, V> {
+    #[inline]
     fn from_iter<T: Iterator<(K, V)>>(iter: T) -> BTreeMap<K, V> {
         let mut map = BTreeMap::new();
         map.extend(iter);
@@ -592,6 +610,7 @@ impl<K: Ord, V> Extendable<(K, V)> for BTreeMap<K, V> {
 }
 
 impl<S: Writer, K: Hash<S>, V: Hash<S>> Hash<S> for BTreeMap<K, V> {
+    #[inline]
     fn hash(&self, state: &mut S) {
         for elt in self.iter() {
             elt.hash(state);
@@ -600,12 +619,14 @@ impl<S: Writer, K: Hash<S>, V: Hash<S>> Hash<S> for BTreeMap<K, V> {
 }
 
 impl<K: Ord, V> Default for BTreeMap<K, V> {
+    #[inline]
     fn default() -> BTreeMap<K, V> {
         BTreeMap::new()
     }
 }
 
 impl<K: PartialEq, V: PartialEq> PartialEq for BTreeMap<K, V> {
+    #[inline]
     fn eq(&self, other: &BTreeMap<K, V>) -> bool {
         self.len() == other.len() &&
             self.iter().zip(other.iter()).all(|(a, b)| a == b)
@@ -629,6 +650,7 @@ impl<K: Ord, V: Ord> Ord for BTreeMap<K, V> {
 }
 
 impl<K: Show, V: Show> Show for BTreeMap<K, V> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(write!(f, "{{"));
 
@@ -642,6 +664,7 @@ impl<K: Show, V: Show> Show for BTreeMap<K, V> {
 }
 
 impl<K: Ord, V> Index<K, V> for BTreeMap<K, V> {
+    #[inline]
     fn index(&self, key: &K) -> &V {
         self.find(key).expect("no entry found for key")
     }
@@ -654,18 +677,21 @@ trait Traverse<N> {
 }
 
 impl<'a, K, V> Traverse<&'a Node<K, V>> for Traversal<'a, K, V> {
+    #[inline]
     fn traverse(node: &'a Node<K, V>) -> Traversal<'a, K, V> {
         node.iter()
     }
 }
 
 impl<'a, K, V> Traverse<&'a mut Node<K, V>> for MutTraversal<'a, K, V> {
+    #[inline]
     fn traverse(node: &'a mut Node<K, V>) -> MutTraversal<'a, K, V> {
         node.iter_mut()
     }
 }
 
 impl<K, V> Traverse<Node<K, V>> for MoveTraversal<K, V> {
+    #[inline]
     fn traverse(node: Node<K, V>) -> MoveTraversal<K, V> {
         node.into_iter()
     }
@@ -692,6 +718,7 @@ impl<K, V, E, T: Traverse<E> + DoubleEndedIterator<TraversalItem<K, V, E>>>
     // making these arbitrary sub-range iterators. However the logic to construct these paths
     // efficiently is fairly involved, so this is a FIXME. The sub-range iterators also wouldn't be
     // able to accurately predict size, so those iterators can't implement ExactSize.
+    #[inline]
     fn next(&mut self) -> Option<(K, V)> {
         loop {
             // We want the smallest element, so try to get the top of the left stack
@@ -741,6 +768,7 @@ impl<K, V, E, T: Traverse<E> + DoubleEndedIterator<TraversalItem<K, V, E>>>
         }
     }
 
+    #[inline]
     fn size_hint(&self) -> (uint, Option<uint>) {
         (self.size, Some(self.size))
     }
@@ -749,6 +777,7 @@ impl<K, V, E, T: Traverse<E> + DoubleEndedIterator<TraversalItem<K, V, E>>>
 impl<K, V, E, T: Traverse<E> + DoubleEndedIterator<TraversalItem<K, V, E>>>
         DoubleEndedIterator<(K, V)> for AbsEntries<T> {
     // next_back is totally symmetric to next
+    #[inline]
     fn next_back(&mut self) -> Option<(K, V)> {
         loop {
             let op = match self.right.back_mut() {
@@ -785,30 +814,39 @@ impl<K, V, E, T: Traverse<E> + DoubleEndedIterator<TraversalItem<K, V, E>>>
 }
 
 impl<'a, K, V> Iterator<(&'a K, &'a V)> for Entries<'a, K, V> {
+    #[inline]
     fn next(&mut self) -> Option<(&'a K, &'a V)> { self.inner.next() }
+    #[inline]
     fn size_hint(&self) -> (uint, Option<uint>) { self.inner.size_hint() }
 }
 impl<'a, K, V> DoubleEndedIterator<(&'a K, &'a V)> for Entries<'a, K, V> {
+    #[inline]
     fn next_back(&mut self) -> Option<(&'a K, &'a V)> { self.inner.next_back() }
 }
 impl<'a, K, V> ExactSize<(&'a K, &'a V)> for Entries<'a, K, V> {}
 
 
 impl<'a, K, V> Iterator<(&'a K, &'a mut V)> for MutEntries<'a, K, V> {
+    #[inline]
     fn next(&mut self) -> Option<(&'a K, &'a mut V)> { self.inner.next() }
+    #[inline]
     fn size_hint(&self) -> (uint, Option<uint>) { self.inner.size_hint() }
 }
 impl<'a, K, V> DoubleEndedIterator<(&'a K, &'a mut V)> for MutEntries<'a, K, V> {
+    #[inline]
     fn next_back(&mut self) -> Option<(&'a K, &'a mut V)> { self.inner.next_back() }
 }
 impl<'a, K, V> ExactSize<(&'a K, &'a mut V)> for MutEntries<'a, K, V> {}
 
 
 impl<K, V> Iterator<(K, V)> for MoveEntries<K, V> {
+    #[inline]
     fn next(&mut self) -> Option<(K, V)> { self.inner.next() }
+    #[inline]
     fn size_hint(&self) -> (uint, Option<uint>) { self.inner.size_hint() }
 }
 impl<K, V> DoubleEndedIterator<(K, V)> for MoveEntries<K, V> {
+    #[inline]
     fn next_back(&mut self) -> Option<(K, V)> { self.inner.next_back() }
 }
 impl<K, V> ExactSize<(K, V)> for MoveEntries<K, V> {}
@@ -818,6 +856,7 @@ impl<K, V> ExactSize<(K, V)> for MoveEntries<K, V> {}
 impl<'a, K: Ord, V> VacantEntry<'a, K, V> {
     /// Sets the value of the entry with the VacantEntry's key,
     /// and returns a mutable reference to it.
+    #[inline]
     pub fn set(self, value: V) -> &'a mut V {
         self.stack.insert(self.key, value)
     }
@@ -825,28 +864,33 @@ impl<'a, K: Ord, V> VacantEntry<'a, K, V> {
 
 impl<'a, K: Ord, V> OccupiedEntry<'a, K, V> {
     /// Gets a reference to the value in the entry.
+    #[inline]
     pub fn get(&self) -> &V {
         self.stack.peek()
     }
 
     /// Gets a mutable reference to the value in the entry.
+    #[inline]
     pub fn get_mut(&mut self) -> &mut V {
         self.stack.peek_mut()
     }
 
     /// Converts the entry into a mutable reference to its value.
+    #[inline]
     pub fn into_mut(self) -> &'a mut V {
         self.stack.into_top()
     }
 
     /// Sets the value of the entry with the OccupiedEntry's key,
     /// and returns the entry's old value.
+    #[inline]
     pub fn set(&mut self, mut value: V) -> V {
         mem::swap(self.stack.peek_mut(), &mut value);
         value
     }
 
     /// Takes the value of the entry out of the map, and returns it.
+    #[inline]
     pub fn take(self) -> V {
         self.stack.remove()
     }
@@ -854,6 +898,7 @@ impl<'a, K: Ord, V> OccupiedEntry<'a, K, V> {
 
 impl<K, V> BTreeMap<K, V> {
     /// Gets an iterator over the entries of the map.
+    #[inline]
     pub fn iter<'a>(&'a self) -> Entries<'a, K, V> {
         let len = self.len();
         Entries {
@@ -867,6 +912,7 @@ impl<K, V> BTreeMap<K, V> {
     }
 
     /// Gets a mutable iterator over the entries of the map.
+    #[inline]
     pub fn iter_mut<'a>(&'a mut self) -> MutEntries<'a, K, V> {
         let len = self.len();
         MutEntries {
@@ -880,6 +926,7 @@ impl<K, V> BTreeMap<K, V> {
     }
 
     /// Gets an owning iterator over the entries of the map.
+    #[inline]
     pub fn into_iter(self) -> MoveEntries<K, V> {
         let len = self.len();
         MoveEntries {
@@ -893,11 +940,13 @@ impl<K, V> BTreeMap<K, V> {
     }
 
     /// Gets an iterator over the keys of the map.
+    #[inline]
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> {
         self.iter().map(|(k, _)| k)
     }
 
     /// Gets an iterator over the values of the map.
+    #[inline]
     pub fn values<'a>(&'a self) -> Values<'a, K, V> {
         self.iter().map(|(_, v)| v)
     }
@@ -905,6 +954,7 @@ impl<K, V> BTreeMap<K, V> {
 
 impl<K: Ord, V> BTreeMap<K, V> {
     /// Gets the given key's corresponding entry in the map for in-place manipulation.
+    #[inline]
     pub fn entry<'a>(&'a mut self, key: K) -> Entry<'a, K, V> {
         // same basic logic of `swap` and `pop`, blended together
         let mut stack = stack::PartialSearchStack::new(self);

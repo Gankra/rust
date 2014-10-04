@@ -70,6 +70,7 @@ impl<K: Ord, V> Node<K, V> {
     /// Searches for the given key in the node. If it finds an exact match,
     /// `Found` will be yielded with the matching index. If it fails to find an exact match,
     /// `GoDown` will be yielded with the index of the subtree the key must lie in.
+    #[inline]
     pub fn search(&self, key: &K) -> SearchResult {
         // FIXME(Gankro): Tune when to search linear or binary based on B (and maybe K/V).
         // For the B configured as of this writing (B = 6), binary search was *singnificantly*
@@ -77,6 +78,7 @@ impl<K: Ord, V> Node<K, V> {
         self.search_linear(key)
     }
 
+    #[inline]
     fn search_linear(&self, key: &K) -> SearchResult {
         for (i, k) in self.keys.iter().enumerate() {
             match k.cmp(key) {
@@ -92,6 +94,7 @@ impl<K: Ord, V> Node<K, V> {
 // Public interface
 impl <K, V> Node<K, V> {
     /// Make a new internal node
+    #[inline]
     pub fn new_internal(capacity: uint) -> Node<K, V> {
         Node {
             keys: Vec::with_capacity(capacity),
@@ -101,6 +104,7 @@ impl <K, V> Node<K, V> {
     }
 
     /// Make a new leaf node
+    #[inline]
     pub fn new_leaf(capacity: uint) -> Node<K, V> {
         Node {
             keys: Vec::with_capacity(capacity),
@@ -110,11 +114,13 @@ impl <K, V> Node<K, V> {
     }
 
     /// Make a leaf root from scratch
+    #[inline]
     pub fn make_leaf_root(b: uint) -> Node<K, V> {
         Node::new_leaf(capacity_from_b(b))
     }
 
     /// Make an internal root and swap it with an old root
+    #[inline]
     pub fn make_internal_root(left_and_out: &mut Node<K,V>, b: uint, key: K, value: V,
             right: Node<K,V>) {
         let mut node = Node::new_internal(capacity_from_b(b));
@@ -127,73 +133,87 @@ impl <K, V> Node<K, V> {
 
 
     /// How many key-value pairs the node contains
+    #[inline]
     pub fn len(&self) -> uint {
         self.keys.len()
     }
 
     /// How many key-value pairs the node can fit
+    #[inline]
     pub fn capacity(&self) -> uint {
         self.keys.capacity()
     }
 
     /// If the node has any children
+    #[inline]
     pub fn is_leaf(&self) -> bool {
         self.edges.is_empty()
     }
 
     /// if the node has too few elements
+    #[inline]
     pub fn is_underfull(&self) -> bool {
         self.len() < min_load_from_capacity(self.capacity())
     }
 
     /// if the node cannot fit any more elements
+    #[inline]
     pub fn is_full(&self) -> bool {
         self.len() == self.capacity()
     }
 
     /// Swap the given key-value pair with the key-value pair stored in the node's index,
     /// without checking bounds.
+    #[inline]
     pub unsafe fn unsafe_swap(&mut self, index: uint, key: &mut K, val: &mut V) {
         mem::swap(self.keys.as_mut_slice().unsafe_mut(index), key);
         mem::swap(self.vals.as_mut_slice().unsafe_mut(index), val);
     }
 
     /// Get the node's key mutably without any bounds checks.
+    #[inline]
     pub unsafe fn unsafe_key_mut(&mut self, index: uint) -> &mut K {
         self.keys.as_mut_slice().unsafe_mut(index)
     }
 
     /// Get the node's value at the given index
+    #[inline]
     pub fn val(&self, index: uint) -> Option<&V> {
         self.vals.as_slice().get(index)
     }
 
     /// Get the node's value at the given index
+    #[inline]
     pub fn val_mut(&mut self, index: uint) -> Option<&mut V> {
         self.vals.as_mut_slice().get_mut(index)
     }
 
     /// Get the node's value mutably without any bounds checks.
+    #[inline]
     pub unsafe fn unsafe_val_mut(&mut self, index: uint) -> &mut V {
         self.vals.as_mut_slice().unsafe_mut(index)
     }
 
     /// Get the node's edge at the given index
+    #[inline]
     pub fn edge(&self, index: uint) -> Option<&Node<K,V>> {
         self.edges.as_slice().get(index)
     }
 
     /// Get the node's edge mutably at the given index
+    #[inline]
     pub fn edge_mut(&mut self, index: uint) -> Option<&mut Node<K,V>> {
         self.edges.as_mut_slice().get_mut(index)
     }
 
     /// Get the node's edge mutably without any bounds checks.
+    #[inline]
     pub unsafe fn unsafe_edge_mut(&mut self, index: uint) -> &mut Node<K,V> {
         self.edges.as_mut_slice().unsafe_mut(index)
     }
 
     /// Pop an edge off the end of the node
+    #[inline]
     pub fn pop_edge(&mut self) -> Option<Node<K,V>> {
         self.edges.pop()
     }
@@ -203,6 +223,7 @@ impl <K, V> Node<K, V> {
     ///
     /// Returns a *mut V to the inserted value, because the caller may want this when
     /// they're done mutating the tree, but we don't want to borrow anything for now.
+    #[inline]
     pub fn insert_as_leaf(&mut self, index: uint, key: K, value: V) ->
             (InsertionResult<K, V>, *mut V) {
         if !self.is_full() {
@@ -228,6 +249,7 @@ impl <K, V> Node<K, V> {
 
     /// Try to insert this key-value pair at the given index in this internal node
     /// If the node is full, we have to split it.
+    #[inline]
     pub fn insert_as_internal(&mut self, index: uint, key: K, value: V, right: Node<K, V>)
             -> InsertionResult<K, V> {
         if !self.is_full() {
@@ -250,6 +272,7 @@ impl <K, V> Node<K, V> {
     }
 
     /// Remove the key-value pair at the given index
+    #[inline]
     pub fn remove_as_leaf(&mut self, index: uint) -> (K, V) {
         match (self.keys.remove(index), self.vals.remove(index)) {
             (Some(k), Some(v)) => (k, v),
@@ -263,6 +286,7 @@ impl <K, V> Node<K, V> {
     /// (always slow, but at least faster since we know we're half-empty).
     /// Handling "to the right" reverses these roles. Of course, we merge whenever possible
     /// because we want dense nodes, and merging is about equal work regardless of direction.
+    #[inline]
     pub fn handle_underflow(&mut self, underflowed_child_index: uint) {
         assert!(underflowed_child_index <= self.len());
         unsafe {
@@ -274,6 +298,7 @@ impl <K, V> Node<K, V> {
         }
     }
 
+    #[inline]
     pub fn iter<'a>(&'a self) -> Traversal<'a, K, V> {
         let is_leaf = self.is_leaf();
         Traversal {
@@ -285,6 +310,7 @@ impl <K, V> Node<K, V> {
         }
     }
 
+    #[inline]
     pub fn iter_mut<'a>(&'a mut self) -> MutTraversal<'a, K, V> {
         let is_leaf = self.is_leaf();
         MutTraversal {
@@ -296,6 +322,7 @@ impl <K, V> Node<K, V> {
         }
     }
 
+    #[inline]
     pub fn into_iter(self) -> MoveTraversal<K, V> {
         let is_leaf = self.is_leaf();
         MoveTraversal {
@@ -311,6 +338,7 @@ impl <K, V> Node<K, V> {
 // Private implementation details
 impl<K, V> Node<K, V> {
     /// Make a node from its raw components
+    #[inline]
     fn from_vecs(keys: Vec<K>, vals: Vec<V>, edges: Vec<Node<K, V>>) -> Node<K, V> {
         Node {
             keys: keys,
@@ -321,6 +349,7 @@ impl<K, V> Node<K, V> {
 
     /// We have somehow verified that this key-value pair will fit in this internal node,
     /// so insert under that assumption.
+    #[inline]
     fn insert_fit_as_leaf(&mut self, index: uint, key: K, val: V) {
         self.keys.insert(index, key);
         self.vals.insert(index, val);
@@ -328,6 +357,7 @@ impl<K, V> Node<K, V> {
 
     /// We have somehow verified that this key-value pair will fit in this internal node,
     /// so insert under that assumption
+    #[inline]
     fn insert_fit_as_internal(&mut self, index: uint, key: K, val: V, right: Node<K, V>) {
         self.keys.insert(index, key);
         self.vals.insert(index, val);
@@ -336,6 +366,7 @@ impl<K, V> Node<K, V> {
 
     /// Node is full, so split it into two nodes, and yield the middle-most key-value pair
     /// because we have one too many, and our parent now has one too few
+    #[inline]
     fn split(&mut self) -> (K, V, Node<K, V>) {
         let r_keys = split(&mut self.keys);
         let r_vals = split(&mut self.vals);
@@ -355,6 +386,7 @@ impl<K, V> Node<K, V> {
 
     /// Right is underflowed. Try to steal from left,
     /// but merge left and right if left is low too.
+    #[inline]
     unsafe fn handle_underflow_to_left(&mut self, underflowed_child_index: uint) {
         let left_len = self.edges[underflowed_child_index - 1].len();
         if left_len > min_load_from_capacity(self.capacity()) {
@@ -366,6 +398,7 @@ impl<K, V> Node<K, V> {
 
     /// Left is underflowed. Try to steal from the right,
     /// but merge left and right if right is low too.
+    #[inline]
     unsafe fn handle_underflow_to_right(&mut self, underflowed_child_index: uint) {
         let right_len = self.edges[underflowed_child_index + 1].len();
         if right_len > min_load_from_capacity(self.capacity()) {
@@ -377,6 +410,7 @@ impl<K, V> Node<K, V> {
 
     /// Steal! Stealing is roughly analagous to a binary tree rotation.
     /// In this case, we're "rotating" right.
+    #[inline]
     unsafe fn steal_to_left(&mut self, underflowed_child_index: uint) {
         // Take the biggest stuff off left
         let (mut key, mut val, edge) = {
@@ -404,6 +438,7 @@ impl<K, V> Node<K, V> {
 
     /// Steal! Stealing is roughly analagous to a binary tree rotation.
     /// In this case, we're "rotating" left.
+    #[inline]
     unsafe fn steal_to_right(&mut self, underflowed_child_index: uint) {
         // Take the smallest stuff off right
         let (mut key, mut val, edge) = {
@@ -431,6 +466,7 @@ impl<K, V> Node<K, V> {
 
     /// Merge! Left and right will be smooshed into one node, along with the key-value
     /// pair that seperated them in their parent.
+    #[inline]
     unsafe fn merge_children(&mut self, left_index: uint) {
         // Permanently remove right's index, and the key-value pair that seperates
         // left and right
@@ -449,6 +485,7 @@ impl<K, V> Node<K, V> {
     }
 
     /// Take all the values from right, seperated by the given key and value
+    #[inline]
     fn absorb(&mut self, key: K, val: V, right: Node<K, V>) {
         // Just as a sanity check, make sure we can fit this guy in
         debug_assert!(self.len() + right.len() <= self.capacity())
@@ -462,6 +499,7 @@ impl<K, V> Node<K, V> {
 }
 
 /// Takes a Vec, and splits half the elements into a new one.
+#[inline]
 fn split<T>(left: &mut Vec<T>) -> Vec<T> {
     // This function is intended to be called on a full Vec of size 2B - 1 (keys, values),
     // or 2B (edges). In the former case, left should get B elements, and right should get
@@ -483,11 +521,13 @@ fn split<T>(left: &mut Vec<T>) -> Vec<T> {
 }
 
 /// Get the capacity of a node from the order of the parent B-Tree
+#[inline]
 fn capacity_from_b(b: uint) -> uint {
     2 * b - 1
 }
 
 /// Get the minimum load of a node from its capacity
+#[inline]
 fn min_load_from_capacity(cap: uint) -> uint {
     // B - 1
     cap / 2
@@ -523,7 +563,7 @@ pub type MoveTraversal<K, V> = AbsTraversal<Zip<vec::MoveItems<K>, vec::MoveItem
 
 impl<K, V, E, Elems: Iterator<(K, V)>, Edges: Iterator<E>>
         Iterator<TraversalItem<K, V, E>> for AbsTraversal<Elems, Edges> {
-
+    #[inline]
     fn next(&mut self) -> Option<TraversalItem<K, V, E>> {
         let head_is_edge = self.head_is_edge;
         self.head_is_edge = !head_is_edge;
@@ -538,7 +578,7 @@ impl<K, V, E, Elems: Iterator<(K, V)>, Edges: Iterator<E>>
 
 impl<K, V, E, Elems: DoubleEndedIterator<(K, V)>, Edges: DoubleEndedIterator<E>>
         DoubleEndedIterator<TraversalItem<K, V, E>> for AbsTraversal<Elems, Edges> {
-
+    #[inline]
     fn next_back(&mut self) -> Option<TraversalItem<K, V, E>> {
         let tail_is_edge = self.tail_is_edge;
         self.tail_is_edge = !tail_is_edge;

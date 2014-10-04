@@ -60,11 +60,13 @@ pub struct UnionItems<'a, T:'a> {
 
 impl<T: Ord> BTreeSet<T> {
     /// Makes a new BTreeSet with a reasonable choice of B.
+    #[inline]
     pub fn new() -> BTreeSet<T> {
         BTreeSet { map: BTreeMap::new() }
     }
 
     /// Makes a new BTreeSet with the given B.
+    #[inline]
     pub fn with_b(b: uint) -> BTreeSet<T> {
         BTreeSet { map: BTreeMap::with_b(b) }
     }
@@ -72,11 +74,13 @@ impl<T: Ord> BTreeSet<T> {
 
 impl<T> BTreeSet<T> {
     /// Gets an iterator over the BTreeSet's contents.
+    #[inline]
     pub fn iter<'a>(&'a self) -> Items<'a, T> {
         self.map.keys()
     }
 
     /// Gets an iterator for moving out the BtreeSet's contents.
+    #[inline]
     pub fn into_iter(self) -> MoveItems<T> {
         self.map.into_iter().map(|(k, _)| k)
     }
@@ -84,49 +88,58 @@ impl<T> BTreeSet<T> {
 
 impl<T: Ord> BTreeSet<T> {
     /// Visits the values representing the difference, in ascending order.
+    #[inline]
     pub fn difference<'a>(&'a self, other: &'a BTreeSet<T>) -> DifferenceItems<'a, T> {
         DifferenceItems{a: self.iter().peekable(), b: other.iter().peekable()}
     }
 
     /// Visits the values representing the symmetric difference, in ascending order.
+    #[inline]
     pub fn symmetric_difference<'a>(&'a self, other: &'a BTreeSet<T>)
         -> SymDifferenceItems<'a, T> {
         SymDifferenceItems{a: self.iter().peekable(), b: other.iter().peekable()}
     }
 
     /// Visits the values representing the intersection, in ascending order.
+    #[inline]
     pub fn intersection<'a>(&'a self, other: &'a BTreeSet<T>)
         -> IntersectionItems<'a, T> {
         IntersectionItems{a: self.iter().peekable(), b: other.iter().peekable()}
     }
 
     /// Visits the values representing the union, in ascending order.
+    #[inline]
     pub fn union<'a>(&'a self, other: &'a BTreeSet<T>) -> UnionItems<'a, T> {
         UnionItems{a: self.iter().peekable(), b: other.iter().peekable()}
     }
 }
 
 impl<T> Collection for BTreeSet<T> {
+    #[inline]
     fn len(&self) -> uint {
         self.map.len()
     }
 }
 
 impl<T: Ord> Mutable for BTreeSet<T> {
+    #[inline]
     fn clear(&mut self) {
         self.map.clear()
     }
 }
 
 impl<T: Ord> Set<T> for BTreeSet<T> {
+    #[inline]
     fn contains(&self, value: &T) -> bool {
         self.map.find(value).is_some()
     }
 
+    #[inline]
     fn is_disjoint(&self, other: &BTreeSet<T>) -> bool {
         self.intersection(other).next().is_none()
     }
 
+    #[inline]
     fn is_subset(&self, other: &BTreeSet<T>) -> bool {
         // Stolen from TreeMap
         let mut x = self.iter();
@@ -154,16 +167,19 @@ impl<T: Ord> Set<T> for BTreeSet<T> {
 }
 
 impl<T: Ord> MutableSet<T> for BTreeSet<T>{
+    #[inline]
     fn insert(&mut self, value: T) -> bool {
         self.map.insert(value, ())
     }
 
+    #[inline]
     fn remove(&mut self, value: &T) -> bool {
         self.map.remove(value)
     }
 }
 
 impl<T: Ord> FromIterator<T> for BTreeSet<T> {
+    #[inline]
     fn from_iter<Iter: Iterator<T>>(iter: Iter) -> BTreeSet<T> {
         let mut set = BTreeSet::new();
         set.extend(iter);
@@ -181,12 +197,14 @@ impl<T: Ord> Extendable<T> for BTreeSet<T> {
 }
 
 impl<T: Ord> Default for BTreeSet<T> {
+    #[inline]
     fn default() -> BTreeSet<T> {
         BTreeSet::new()
     }
 }
 
 impl<T: Show> Show for BTreeSet<T> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(write!(f, "{{"));
 
@@ -200,6 +218,7 @@ impl<T: Show> Show for BTreeSet<T> {
 }
 
 /// Compare `x` and `y`, but return `short` if x is None and `long` if y is None
+#[inline]
 fn cmp_opt<T: Ord>(x: Option<&T>, y: Option<&T>,
                         short: Ordering, long: Ordering) -> Ordering {
     match (x, y) {
@@ -210,6 +229,7 @@ fn cmp_opt<T: Ord>(x: Option<&T>, y: Option<&T>,
 }
 
 impl<'a, T: Ord> Iterator<&'a T> for DifferenceItems<'a, T> {
+    #[inline]
     fn next(&mut self) -> Option<&'a T> {
         loop {
             match cmp_opt(self.a.peek(), self.b.peek(), Less, Less) {
@@ -222,6 +242,7 @@ impl<'a, T: Ord> Iterator<&'a T> for DifferenceItems<'a, T> {
 }
 
 impl<'a, T: Ord> Iterator<&'a T> for SymDifferenceItems<'a, T> {
+    #[inline]
     fn next(&mut self) -> Option<&'a T> {
         loop {
             match cmp_opt(self.a.peek(), self.b.peek(), Greater, Less) {
@@ -234,6 +255,7 @@ impl<'a, T: Ord> Iterator<&'a T> for SymDifferenceItems<'a, T> {
 }
 
 impl<'a, T: Ord> Iterator<&'a T> for IntersectionItems<'a, T> {
+    #[inline]
     fn next(&mut self) -> Option<&'a T> {
         loop {
             let o_cmp = match (self.a.peek(), self.b.peek()) {
@@ -252,6 +274,7 @@ impl<'a, T: Ord> Iterator<&'a T> for IntersectionItems<'a, T> {
 }
 
 impl<'a, T: Ord> Iterator<&'a T> for UnionItems<'a, T> {
+    #[inline]
     fn next(&mut self) -> Option<&'a T> {
         loop {
             match cmp_opt(self.a.peek(), self.b.peek(), Greater, Less) {
