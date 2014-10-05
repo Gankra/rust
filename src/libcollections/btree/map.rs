@@ -1239,6 +1239,7 @@ mod test {
 #[cfg(test)]
 mod bench {
     use std::prelude::*;
+    use std::rand::{weak_rng, Rng};
     use test::{Bencher, black_box};
 
     use super::BTreeMap;
@@ -1297,10 +1298,13 @@ mod bench {
     }
 
     fn bench_iter(b: &mut Bencher, size: uint) {
-        let mut map = BTreeMap::new();
-        for i in range(0, size) {
-            map.swap(i, i);
+        let mut map = BTreeMap::<uint, uint>::new();
+        let mut rng = weak_rng();
+
+        for _ in range(0, size) {
+            map.swap(rng.gen(), rng.gen());
         }
+
         b.iter(|| {
             for entry in map.iter() {
                 black_box(entry);

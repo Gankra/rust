@@ -1464,10 +1464,13 @@ mod bench_map {
     use super::TrieMap;
 
     fn bench_iter(b: &mut Bencher, size: uint) {
-        let mut map = TrieMap::new();
-        for i in range(0, size) {
-            map.swap(i, i);
+        let mut map = TrieMap::<uint>::new();
+        let mut rng = weak_rng();
+
+        for _ in range(0, size) {
+            map.swap(rng.gen(), rng.gen());
         }
+
         b.iter(|| {
             for entry in map.iter() {
                 black_box(entry);
