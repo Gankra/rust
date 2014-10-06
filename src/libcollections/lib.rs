@@ -21,7 +21,7 @@
 //! borderline *niche* in comparison. Even when `Vec` and `HashMap` are technically suboptimal,
 //! they're probably a good enough choice to get started.
 //!
-//! # When Should Use Which Collection?
+//! # When Should You Use Which Collection?
 //!
 //! ### Use a `Vec` when:
 //! * You just want to store some items temporarily, to be processed or sent elsewhere later.
@@ -102,25 +102,25 @@
 //!
 //! Many collections provide several constructors and methods that refer to "capacity".
 //! These collections are generally built on top of an array. Optimally, this array would be
-//! *exactly* the right size to fit only the elements stored in the collection, but for the
+//! exactly the right size to fit only the elements stored in the collection, but for the
 //! collection to do this would be very inefficient. If the backing array was exactly the
 //! right size at all times, then every time an element is inserted, the collection would
 //! have to grow the array to fit it. Due to the way memory is allocated and managed on most
-//! computers, this would almost surely require allocating an *entirely new* array and
+//! computers, this would almost surely require allocating an entirely new array and
 //! copying every single element from the old one into the new one. Hopefully you can
 //! see that this wouldn't be very efficient to do on every operation.
 //!
 //! Most collections therefore use an *amortized* allocation strategy. They generally let
 //! themselves have a fair amount of unoccupied space so that they only have to grow
-//! on occasion. When they do grow, they allocate a *substantially* larger array to move
+//! on occasion. When they do grow, they allocate a substantially larger array to move
 //! the elements into so that it will take a while for another grow to be required. While
-//! this strategy is great in general, it would be *even better* if the collection *never*
+//! this strategy is great in general, it would be even better if the collection *never*
 //! had to resize its backing array. Unfortunately, the collection itself doesn't have
 //! enough information to do this itself. Therefore, it is up to us programmers to give it
 //! hints.
 //!
 //! Any `with_capacity` constructor will instruct the collection to allocate enough space
-//! for the specified number of elements. *Ideally* this will be for *exactly* that many
+//! for the specified number of elements. Ideally this will be for exactly that many
 //! elements, but some implementation details may prevent this. `Vec` and `RingBuf` can
 //! be relied on to allocate exactly the requested amount, though. Use `with_capacity`
 //! when you know exactly how many elements will be inserted, or at least have a
@@ -131,14 +131,14 @@
 //! As with `with_capacity`, the precise behavior of these methods will be specific to
 //! the collection of interest.
 //!
-//! For optimal performance, collections will generally avoid *shrinking* themselves.
-//! If you believe that a collection will not soon contain any *more* elements, or
+//! For optimal performance, collections will generally avoid shrinking themselves.
+//! If you believe that a collection will not soon contain any more elements, or
 //! just really need the memory, the `shrink_to_fit` method prompts the collection
-//! to *shrink* the backing array to the minimum size capable of holding its elements.
+//! to shrink the backing array to the minimum size capable of holding its elements.
 //!
 //! Finally, if ever you're interested in what the actual capacity of the collection is,
-//! the `capacity` method should provide this information on demand. This can be useful
-//! for debugging purposes, or for use with the `reserve` methods.
+//! most collections provide a `capacity` method to query this information on demand.
+//! This can be useful for debugging purposes, or for use with the `reserve` methods.
 //!
 //! ## Iterators
 //!
@@ -150,7 +150,7 @@
 //! consumed using a `for` loop, although many functions also take iterators where
 //! a collection or sequence of values is desired.
 //!
-//! All of the standard collections provide *several* iterators for performing bulk
+//! All of the standard collections provide several iterators for performing bulk
 //! manipulation of their contents. The three primary iterators almost every collection
 //! should provide are `iter`, `iter_mut`, and `into_iter`. Some of these are not
 //! provided on collections where it would be unsound or unreasonable to provide them.
@@ -164,24 +164,20 @@
 //! all the contents of the collection.
 //!
 //! ```
-//!    use std::collections::Vec;
-//!
-//!    let vec = vec![1u, 2, 3, 4];
-//!    for x in vec.iter() {
-//!       println!("vec contained {}", x);
-//!    }
+//! let vec = vec![1u, 2, 3, 4];
+//! for x in vec.iter() {
+//!    println!("vec contained {}", x);
+//! }
 //! ```
 //!
-//! `iter_mut` provides an iterator of *mutable* reference in the same order as `iter`.
+//! `iter_mut` provides an iterator of *mutable* references in the same order as `iter`.
 //! This is great for mutating all the contents of the collection.
 //!
 //! ```
-//!    use std::collections::Vec;
-//!
-//!    let mut vec = vec![1u, 2, 3, 4];
-//!    for x in vec.iter_mut() {
-//!       *x += 1;
-//!    }
+//! let mut vec = vec![1u, 2, 3, 4];
+//! for x in vec.iter_mut() {
+//!    *x += 1;
+//! }
 //! ```
 //!
 //! `into_iter` transforms the actual collection into an iterator over its contents
@@ -193,18 +189,16 @@
 //! previous section to do this as efficiently as possible.
 //!
 //! ```
-//!    use std::collections::Vec;
-//!
-//!    let mut vec1 = vec![1u, 2, 3, 4];
-//!    let vec2 = vec![10u, 20, 30, 40];
-//!    vec1.extend(vec2.into_iter());
+//! let mut vec1 = vec![1u, 2, 3, 4];
+//! let vec2 = vec![10u, 20, 30, 40];
+//! vec1.extend(vec2.into_iter());
 //! ```
 //!
 //! ```
-//!    use std::collections::{Vec, Ringbuf};
+//! use std::collections::RingBuf;
 //!
-//!    let vec1 = vec![1u, 2, 3, 4];
-//!    let vec2: RingBuf<uint> = vec1.into_iter().collect();
+//! let vec1 = vec![1u, 2, 3, 4];
+//! let vec2: RingBuf<uint> = vec1.into_iter().collect();
 //! ```
 //!
 //! Several other collection methods also return iterators, to yield a sequence of results
@@ -219,7 +213,7 @@
 //! The `entry` API is intended to provide an efficient mechanism for manipulating
 //! the contents of a map conditionally on the presence of a key or not. The primary
 //! motivating use case for this is to provide efficient accumulator maps. For instance,
-//! if one wishes to maintain a *count* of the number of times each key has been seen,
+//! if one wishes to maintain a count of the number of times each key has been seen,
 //! they will have to perform some conditional logic on whether this is the first time
 //! the key has been seen or not. Normally, this would require a `find` followed by an
 //! `insert`, effectively duplicating the search effort on each insertion.
@@ -232,7 +226,7 @@
 //! the vacant entry is consumed and converted into a mutable reference to the
 //! the value that was inserted. This allows for further manipulation of the value
 //! beyond the lifetime of the search itself. This is useful if complex logic needs to
-//! be performed on the value *regardless* of whether the value was just inserted.
+//! be performed on the value regardless of whether the value was just inserted.
 //!
 //! If an `Occupied(entry)` is yielded, then the key *was* found. In this case, the user
 //! has several options: they can `get`, `set`, or `take` the value of the occupied
@@ -247,24 +241,24 @@
 //! #### Counting the number of times each character in a string occurs
 //!
 //! ```
-//!     use std::collections::btree::{BTreeMap, Occupied, Vacant};
+//! use std::collections::btree::{BTreeMap, Occupied, Vacant};
 //!
-//!     let mut count = BTreeMap::new();
-//!     let message = "she sells sea shells by the sea shore";
+//! let mut count = BTreeMap::new();
+//! let message = "she sells sea shells by the sea shore";
 //!
-//!     for c in message.chars() {
-//!         match count.entry(c) {
-//!             Vacant(entry) => { entry.set(1u); },
-//!             Occupied(mut entry) => *entry.get_mut() += 1,
-//!         }
+//! for c in message.chars() {
+//!     match count.entry(c) {
+//!         Vacant(entry) => { entry.set(1u); },
+//!         Occupied(mut entry) => *entry.get_mut() += 1,
 //!     }
+//! }
 //!
-//!     assert_eq!(count.find(&'s'), Some(&8));
+//! assert_eq!(count.find(&'s'), Some(&8));
 //!
-//!     println!("Number of occurences of each character");
-//!     for (char, count) in count.iter() {
-//!         println!("{}: {}", char, count);
-//!     }
+//! println!("Number of occurences of each character");
+//! for (char, count) in count.iter() {
+//!     println!("{}: {}", char, count);
+//! }
 //! ```
 //!
 //! When the logic to be performed on the value is more complex, we may simply use
@@ -274,37 +268,37 @@
 //! #### Tracking the inebriation of customers at a bar
 //!
 //! ```
-//!     use std::collections::btree::{BTreeMap, Occupied, Vacant};
+//! use std::collections::btree::{BTreeMap, Occupied, Vacant};
 //!
-//!     // A client of the bar. They have an id and a blood alcohol level.
-//!     struct Person { id: u32, blood_alcohol: f32 };
+//! // A client of the bar. They have an id and a blood alcohol level.
+//! struct Person { id: u32, blood_alcohol: f32 };
 //!
-//!     // All the orders made to the bar, by client id.
-//!     let orders = vec![1,2,1,2,3,4,1,2,2,3,4,1,1,1];
+//! // All the orders made to the bar, by client id.
+//! let orders = vec![1,2,1,2,3,4,1,2,2,3,4,1,1,1];
 //!
-//!     // Our clients.
-//!     let mut blood_alcohol = BTreeMap::new();
+//! // Our clients.
+//! let mut blood_alcohol = BTreeMap::new();
 //!
-//!     for id in orders.into_iter() {
-//!         // If this is the first time we've seen this customer, initialize them
-//!         // with no blood alcohol. Otherwise, just retrieve them.
-//!         let person = match blood_alcohol.entry(id) {
-//!             Vacant(entry) => entry.set(Person{id: id, blood_alcohol: 0.0}),
-//!             Occupied(entry) => entry.into_mut(),
-//!         };
+//! for id in orders.into_iter() {
+//!     // If this is the first time we've seen this customer, initialize them
+//!     // with no blood alcohol. Otherwise, just retrieve them.
+//!     let person = match blood_alcohol.entry(id) {
+//!         Vacant(entry) => entry.set(Person{id: id, blood_alcohol: 0.0}),
+//!         Occupied(entry) => entry.into_mut(),
+//!     };
 //!
-//!         // Reduce their blood alcohol level. It takes time to order and drink a beer!
-//!         person.blood_alcohol *= 0.9;
+//!     // Reduce their blood alcohol level. It takes time to order and drink a beer!
+//!     person.blood_alcohol *= 0.9;
 //!
-//!         // Check if they're sober enough to have another beer.
-//!         if person.blood_alcohol > 0.3 {
-//!             // Too drunk... for now.
-//!             println!("Sorry {}, I have to cut you off", person.id);
-//!         } else {
-//!             // Have another!
-//!             person.blood_alcohol += 0.1;
-//!         }
+//!     // Check if they're sober enough to have another beer.
+//!     if person.blood_alcohol > 0.3 {
+//!         // Too drunk... for now.
+//!         println!("Sorry {}, I have to cut you off", person.id);
+//!     } else {
+//!         // Have another!
+//!         person.blood_alcohol += 0.1;
 //!     }
+//! }
 //! ```
 
 #![crate_name = "collections"]
