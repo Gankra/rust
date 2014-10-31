@@ -26,7 +26,7 @@
 //! * Sequences: `Vec`, `RingBuf`, `DList`, `BitV`
 //! * Maps: `HashMap`, `BTreeMap`, `TreeMap`, `TrieMap`, `SmallIntMap`, `LruCache`
 //! * Sets: `HashSet`, `BTreeSet`, `TreeSet`, `TrieSet`, `BitVSet`, `EnumSet`
-//! * Misc: `PriorityQueue`
+//! * Misc: `BinaryHeap`
 //!
 //! # When Should You Use Which Collection?
 //!
@@ -93,7 +93,7 @@
 //! ### Use an `EnumSet` when:
 //! * You want a C-like enum, stored in a single `uint`.
 //!
-//! ### Use a `PriorityQueue` when:
+//! ### Use a `BinaryHeap` when:
 //! * You want to store a bunch of elements, but only ever want to process the "biggest"
 //! or "most important" one at any given time.
 //! * You want a priority queue.
@@ -266,7 +266,7 @@
 //! #### Counting the number of times each character in a string occurs
 //!
 //! ```
-//! use std::collections::btree::{BTreeMap, Occupied, Vacant};
+//! use std::collections::btreemap::{BTreeMap, Occupied, Vacant};
 //!
 //! let mut count = BTreeMap::new();
 //! let message = "she sells sea shells by the sea shore";
@@ -293,7 +293,7 @@
 //! #### Tracking the inebriation of customers at a bar
 //!
 //! ```
-//! use std::collections::btree::{BTreeMap, Occupied, Vacant};
+//! use std::collections::btreemap::{BTreeMap, Occupied, Vacant};
 //!
 //! // A client of the bar. They have an id and a blood alcohol level.
 //! struct Person { id: u32, blood_alcohol: f32 };
@@ -328,14 +328,27 @@
 
 #![experimental]
 
-pub use core_collections::{Bitv, BitvSet, BTreeMap, BTreeSet, DList, EnumSet};
-pub use core_collections::{PriorityQueue, RingBuf, SmallIntMap};
+pub use core_collections::{BinaryHeap, Bitv, BitvSet, BTreeMap, BTreeSet};
+pub use core_collections::{DList, EnumSet, RingBuf, SmallIntMap};
 pub use core_collections::{TreeMap, TreeSet, TrieMap, TrieSet};
-pub use core_collections::{bitv, btree, dlist, enum_set};
-pub use core_collections::{priority_queue, ringbuf, smallintmap, treemap, trie};
 
-pub use self::hashmap::{HashMap, HashSet};
-pub use self::lru_cache::LruCache;
+pub use core_collections::{binaryheap, bitv, bitvset, btreemap, btreeset, dlist, enumset};
+pub use core_collections::{ringbuf, smallintmap, treemap, treeset, triemap, trieset};
 
-pub mod hashmap;
-pub mod lru_cache;
+pub use self::hashmap::HashMap;
+pub use self::hashset::HashSet;
+pub use self::lrucache::LruCache;
+
+mod hash;
+
+pub mod hashmap {
+    //! A hashmap
+    pub use super::hash::map::*;
+}
+
+pub mod hashset {
+    //! A hashset
+    pub use super::hash::set::*;
+}
+
+pub mod lrucache;

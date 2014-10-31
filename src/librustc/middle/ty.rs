@@ -55,7 +55,7 @@ use syntax::attr::{mod, AttrMetaMethods};
 use syntax::codemap::Span;
 use syntax::parse::token::{mod, InternedString};
 use syntax::{ast, ast_map};
-use std::collections::enum_set::{EnumSet, CLike};
+use std::collections::enumset::{EnumSet, CLike};
 
 pub type Disr = u64;
 

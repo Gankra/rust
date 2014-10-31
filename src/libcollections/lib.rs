@@ -37,34 +37,72 @@ extern crate alloc;
 #[cfg(test)] #[phase(plugin, link)] extern crate std;
 #[cfg(test)] #[phase(plugin, link)] extern crate log;
 
-pub use bitv::{Bitv, BitvSet};
-pub use btree::{BTreeMap, BTreeSet};
+
+pub use binaryheap::BinaryHeap;
+pub use bitv::Bitv;
+pub use bitvset::BitvSet;
+pub use btreemap::BTreeMap;
+pub use btreeset::BTreeSet;
 pub use dlist::DList;
-pub use enum_set::EnumSet;
-pub use priority_queue::PriorityQueue;
+pub use enumset::EnumSet;
 pub use ringbuf::RingBuf;
 pub use smallintmap::SmallIntMap;
 pub use string::String;
-pub use treemap::{TreeMap, TreeSet};
-pub use trie::{TrieMap, TrieSet};
+pub use treemap::TreeMap;
+pub use treeset::TreeSet;
+pub use triemap::TrieMap;
+pub use trieset::TrieSet;
 pub use vec::Vec;
 
 mod macros;
 
-pub mod bitv;
-pub mod btree;
+pub mod binaryheap;
+mod bit;
+mod btree;
 pub mod dlist;
-pub mod enum_set;
-pub mod priority_queue;
+pub mod enumset;
 pub mod ringbuf;
 pub mod smallintmap;
-pub mod treemap;
-pub mod trie;
+mod tree;
+mod trie;
 pub mod slice;
 pub mod str;
 pub mod string;
 pub mod vec;
 pub mod hash;
+
+pub mod bitv {
+    pub use bit::{Bitv, Bits, from_fn, from_bytes};
+}
+
+pub mod bitvset {
+    pub use bit::{BitvSet, BitPositions, TwoBitPositions};
+}
+
+pub mod treemap {
+    pub use tree::map::*;
+}
+
+pub mod treeset {
+    pub use tree::set::*;
+}
+
+pub mod triemap {
+    pub use trie::map::*;
+}
+
+pub mod trieset {
+    pub use trie::set::*;
+}
+
+pub mod btreemap {
+    pub use btree::map::*;
+}
+
+pub mod btreeset {
+    pub use btree::set::*;
+}
+
 
 #[cfg(test)] mod bench;
 

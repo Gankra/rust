@@ -947,7 +947,7 @@ use std::option::{Some, None};
 use std::collections::hashmap::{mod, HashMap};
 
 # fn foo<T>(_: T){}
-# fn bar(map: HashMap<String, uint>, set: hashmap::HashSet<String>){}
+# fn bar(map: HashMap<String, uint>, set: hashset::HashSet<String>){}
 
 fn main() {
     // Equivalent to 'std::iter::range_step(0u, 10u, 2u);'
@@ -959,7 +959,7 @@ fn main() {
 
     // Both `hash` and `HashMap` are in scope.
     let map = HashMap::new();
-    let set = hashmap::HashSet::new();
+    let set = hashset::HashSet::new();
     bar(map, set);
 }
 ```
@@ -4096,7 +4096,7 @@ cause transitions between the states. The lifecycle states of a task are:
 
 * running
 * blocked
-* panicked 
+* panicked
 * dead
 
 A task begins its lifecycle &mdash; once it has been spawned &mdash; in the
