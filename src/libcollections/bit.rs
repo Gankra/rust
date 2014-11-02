@@ -216,6 +216,7 @@ impl Bitv {
     /// use std::collections::Bitv;
     /// let mut bv = Bitv::new();
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn new() -> Bitv {
         Bitv { storage: Vec::new(), nbits: 0 }
     }
@@ -613,6 +614,7 @@ impl Bitv {
     /// bv.truncate(2);
     /// assert!(bv.eq_vec([false, true]));
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn truncate(&mut self, len: uint) {
         if len < self.len() {
             self.nbits = len;
@@ -760,14 +762,17 @@ impl Bitv {
 
     /// Return the total number of bits in this vector
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn len(&self) -> uint { self.nbits }
 
     /// Returns true if there are no bits in this vector
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_empty(&self) -> bool { self.len() == 0 }
 
     /// Clears all bits in this vector.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn clear(&mut self) {
         for w in self.storage.iter_mut() { *w = 0u32; }
     }
@@ -1052,6 +1057,7 @@ impl BitvSet {
     /// let mut s = BitvSet::new();
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn new() -> BitvSet {
         BitvSet(Bitv::new())
     }
@@ -1067,6 +1073,7 @@ impl BitvSet {
     /// assert!(s.capacity() >= 100);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn with_capacity(nbits: uint) -> BitvSet {
         let bitv = Bitv::with_capacity(nbits, false);
         BitvSet::from_bitv(bitv)
@@ -1106,6 +1113,7 @@ impl BitvSet {
     /// assert!(s.capacity() >= 100);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn capacity(&self) -> uint {
         let &BitvSet(ref bitv) = self;
         bitv.capacity()
@@ -1212,6 +1220,7 @@ impl BitvSet {
     /// println!("new capacity: {}", s.capacity());
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn shrink_to_fit(&mut self) {
         let &BitvSet(ref mut bitv) = self;
         // Obtain original length
@@ -1240,6 +1249,7 @@ impl BitvSet {
     /// }
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn iter<'a>(&'a self) -> BitPositions<'a> {
         BitPositions {set: self, next_idx: 0u}
     }
@@ -1262,6 +1272,7 @@ impl BitvSet {
     /// }
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn union<'a>(&'a self, other: &'a BitvSet) -> TwoBitPositions<'a> {
         TwoBitPositions {
             set: self,
@@ -1290,6 +1301,7 @@ impl BitvSet {
     /// }
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn intersection<'a>(&'a self, other: &'a BitvSet) -> Take<TwoBitPositions<'a>> {
         let min = cmp::min(self.capacity(), other.capacity());
         TwoBitPositions {
@@ -1326,6 +1338,7 @@ impl BitvSet {
     /// }
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn difference<'a>(&'a self, other: &'a BitvSet) -> TwoBitPositions<'a> {
         TwoBitPositions {
             set: self,
@@ -1355,6 +1368,7 @@ impl BitvSet {
     /// }
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn symmetric_difference<'a>(&'a self, other: &'a BitvSet) -> TwoBitPositions<'a> {
         TwoBitPositions {
             set: self,
@@ -1385,6 +1399,7 @@ impl BitvSet {
     /// assert_eq!(a, res);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn union_with(&mut self, other: &BitvSet) {
         self.other_op(other, |w1, w2| w1 | w2);
     }
@@ -1409,6 +1424,7 @@ impl BitvSet {
     /// assert_eq!(a, res);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn intersect_with(&mut self, other: &BitvSet) {
         self.other_op(other, |w1, w2| w1 & w2);
     }
@@ -1442,6 +1458,7 @@ impl BitvSet {
     /// assert_eq!(bvb, bvb_a);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn difference_with(&mut self, other: &BitvSet) {
         self.other_op(other, |w1, w2| w1 & !w2);
     }
@@ -1467,12 +1484,14 @@ impl BitvSet {
     /// assert_eq!(a, res);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn symmetric_difference_with(&mut self, other: &BitvSet) {
         self.other_op(other, |w1, w2| w1 ^ w2);
     }
 
     /// Return the number of set bits in this set.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn len(&self) -> uint  {
         let &BitvSet(ref bitv) = self;
         bitv.storage.iter().fold(0, |acc, &n| acc + n.count_ones())
@@ -1480,6 +1499,7 @@ impl BitvSet {
 
     /// Returns whether there are no bits set in this set
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_empty(&self) -> bool {
         let &BitvSet(ref bitv) = self;
         bitv.storage.iter().all(|&n| n == 0)
@@ -1487,6 +1507,7 @@ impl BitvSet {
 
     /// Clears all bits in this set
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn clear(&mut self) {
         let &BitvSet(ref mut bitv) = self;
         bitv.clear();
@@ -1494,6 +1515,7 @@ impl BitvSet {
 
     /// Returns `true` if this set contains the specified integer.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn contains(&self, value: &uint) -> bool {
         let &BitvSet(ref bitv) = self;
         *value < bitv.nbits && bitv.get(*value)
@@ -1502,12 +1524,14 @@ impl BitvSet {
     /// Returns `true` if the set has no elements in common with `other`.
     /// This is equivalent to checking for an empty intersection.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_disjoint(&self, other: &BitvSet) -> bool {
         self.intersection(other).next().is_none()
     }
 
     /// Returns `true` if the set is a subset of another.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_subset(&self, other: &BitvSet) -> bool {
         let &BitvSet(ref self_bitv) = self;
         let &BitvSet(ref other_bitv) = other;
@@ -1521,12 +1545,14 @@ impl BitvSet {
 
     /// Returns `true` if the set is a superset of another.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_superset(&self, other: &BitvSet) -> bool {
         other.is_subset(self)
     }
 
     /// Adds a value to the set. Returns `true` if the value was not already
     /// present in the set.
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn insert(&mut self, value: uint) -> bool {
         if self.contains(&value) {
             return false;
@@ -1545,6 +1571,7 @@ impl BitvSet {
 
     /// Removes a value from the set. Returns `true` if the value was
     /// present in the set.
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn remove(&mut self, value: &uint) -> bool {
         if !self.contains(value) {
             return false;

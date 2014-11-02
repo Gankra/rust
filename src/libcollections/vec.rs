@@ -697,7 +697,7 @@ impl<T> Vec<T> {
     /// vec.truncate(2);
     /// assert_eq!(vec, vec![1, 2]);
     /// ```
-    #[unstable = "waiting on panic semantics"]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn truncate(&mut self, len: uint) {
         unsafe {
             // drop any extra elements
@@ -745,6 +745,7 @@ impl<T> Vec<T> {
     /// }
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn into_iter(self) -> MoveItems<T> {
         unsafe {
             let ptr = self.ptr;
@@ -778,26 +779,6 @@ impl<T> Vec<T> {
     #[stable]
     pub unsafe fn set_len(&mut self, len: uint) {
         self.len = len;
-    }
-
-    /// Returns a mutable reference to the value at index `index`.
-    ///
-    /// # Failure
-    ///
-    /// Fails if `index` is out of bounds
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # #![allow(deprecated)]
-    /// let mut vec = vec![1i, 2, 3];
-    /// *vec.get_mut(1) = 4;
-    /// assert_eq!(vec, vec![1i, 4, 3]);
-    /// ```
-    #[inline]
-    #[deprecated = "use `foo[index] = bar` instead"]
-    pub fn get_mut<'a>(&'a mut self, index: uint) -> &'a mut T {
-        &mut self.as_mut_slice()[index]
     }
 
     /// Removes an element from anywhere in the vector and return it, replacing
@@ -1059,6 +1040,7 @@ impl<T> Vec<T> {
     /// v.push(1i);
     /// assert!(!v.is_empty());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_empty(&self) -> bool { self.len() == 0 }
 }
 

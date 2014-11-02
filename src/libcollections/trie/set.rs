@@ -79,6 +79,7 @@ impl TrieSet {
     /// let mut set = TrieSet::new();
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn new() -> TrieSet {
         TrieSet{map: TrieMap::new()}
     }
@@ -126,6 +127,7 @@ impl TrieSet {
     /// }
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn iter<'a>(&'a self) -> SetItems<'a> {
         SetItems{iter: self.map.iter()}
     }
@@ -177,6 +179,7 @@ impl TrieSet {
     /// assert_eq!(v.len(), 1);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn len(&self) -> uint { self.map.len() }
 
     /// Returns true if the set contains no elements
@@ -191,6 +194,7 @@ impl TrieSet {
     /// v.insert(1);
     /// assert!(!v.is_empty());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_empty(&self) -> bool { self.len() == 0 }
 
     /// Clears the set, removing all values.
@@ -206,6 +210,7 @@ impl TrieSet {
     /// assert!(v.is_empty());
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn clear(&mut self) { self.map.clear() }
 
     /// Returns `true` if the set contains a value.
@@ -220,6 +225,7 @@ impl TrieSet {
     /// assert_eq!(set.contains(&4), false);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn contains(&self, value: &uint) -> bool {
         self.map.contains_key(value)
     }
@@ -242,6 +248,7 @@ impl TrieSet {
     /// assert_eq!(a.is_disjoint(&b), false);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_disjoint(&self, other: &TrieSet) -> bool {
         self.iter().all(|v| !other.contains(&v))
     }
@@ -263,6 +270,7 @@ impl TrieSet {
     /// assert_eq!(set.is_subset(&sup), false);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_subset(&self, other: &TrieSet) -> bool {
         self.iter().all(|v| other.contains(&v))
     }
@@ -287,6 +295,7 @@ impl TrieSet {
     /// assert_eq!(set.is_superset(&sub), true);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_superset(&self, other: &TrieSet) -> bool {
         other.is_subset(self)
     }
@@ -306,8 +315,9 @@ impl TrieSet {
     /// assert_eq!(set.len(), 1);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn insert(&mut self, value: uint) -> bool {
-        self.map.insert(value, ())
+        self.map.insert(value, ()).is_none()
     }
 
     /// Removes a value from the set. Returns `true` if the value was
@@ -325,8 +335,9 @@ impl TrieSet {
     /// assert_eq!(set.remove(&2), false);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn remove(&mut self, value: &uint) -> bool {
-        self.map.remove(value)
+        self.map.remove(value).is_some()
     }
 }
 

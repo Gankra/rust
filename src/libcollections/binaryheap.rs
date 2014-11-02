@@ -184,6 +184,7 @@ impl<T: Ord> BinaryHeap<T> {
     /// use std::collections::BinaryHeap;
     /// let pq: BinaryHeap<uint> = BinaryHeap::new();
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn new() -> BinaryHeap<T> { BinaryHeap{data: vec!(),} }
 
     /// Creates an empty `BinaryHeap` with a specific capacity.
@@ -197,6 +198,7 @@ impl<T: Ord> BinaryHeap<T> {
     /// use std::collections::BinaryHeap;
     /// let pq: BinaryHeap<uint> = BinaryHeap::with_capacity(10u);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn with_capacity(capacity: uint) -> BinaryHeap<T> {
         BinaryHeap { data: Vec::with_capacity(capacity) }
     }
@@ -234,6 +236,7 @@ impl<T: Ord> BinaryHeap<T> {
     ///     println!("{}", x);
     /// }
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn iter<'a>(&'a self) -> Items<'a, T> {
         Items { iter: self.data.iter() }
     }
@@ -254,8 +257,8 @@ impl<T: Ord> BinaryHeap<T> {
     /// assert_eq!(pq.top(), Some(&5i));
     ///
     /// ```
-    pub fn top<'a>(&'a self) -> Option<&'a T> {
-        if self.is_empty() { None } else { Some(&self.data[0]) }
+    pub fn top(&self) -> Option<&T> {
+        self.data.get(0)
     }
 
     /// Returns the number of elements the queue can hold without reallocating.
@@ -268,6 +271,7 @@ impl<T: Ord> BinaryHeap<T> {
     /// let pq: BinaryHeap<uint> = BinaryHeap::with_capacity(100u);
     /// assert!(pq.capacity() >= 100u);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn capacity(&self) -> uint { self.data.capacity() }
 
     /// Reserves capacity for exactly `n` elements in the `BinaryHeap`.
@@ -314,6 +318,7 @@ impl<T: Ord> BinaryHeap<T> {
     /// assert_eq!(pq.pop(), Some(1i));
     /// assert_eq!(pq.pop(), None);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn pop(&mut self) -> Option<T> {
         match self.data.pop() {
             None           => { None }
@@ -342,6 +347,7 @@ impl<T: Ord> BinaryHeap<T> {
     /// assert_eq!(pq.len(), 3);
     /// assert_eq!(pq.top(), Some(&5i));
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn push(&mut self, item: T) {
         self.data.push(item);
         let new_len = self.len() - 1;
@@ -495,12 +501,15 @@ impl<T: Ord> BinaryHeap<T> {
     }
 
     /// Returns the length of the queue.
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn len(&self) -> uint { self.data.len() }
 
     /// Returns true if the queue contains no elements
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_empty(&self) -> bool { self.len() == 0 }
 
     /// Drops all items from the queue.
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn clear(&mut self) { self.data.truncate(0) }
 }
 

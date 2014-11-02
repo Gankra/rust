@@ -195,6 +195,7 @@ impl<T> Default for DList<T> {
 impl<T> DList<T> {
     /// Creates an empty `DList`.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn new() -> DList<T> {
         DList{list_head: None, list_tail: Rawlink::none(), length: 0}
     }
@@ -209,9 +210,9 @@ impl<T> DList<T> {
     /// use std::collections::DList;
     ///
     /// let mut dl = DList::new();
-    /// dl.push(1i);
-    /// dl.push(2);
-    /// dl.push(3);
+    /// dl.push_back(1i);
+    /// dl.push_back(2);
+    /// dl.push_back(3);
     ///
     /// dl.rotate_forward();
     ///
@@ -236,9 +237,9 @@ impl<T> DList<T> {
     /// use std::collections::DList;
     ///
     /// let mut dl = DList::new();
-    /// dl.push(1i);
-    /// dl.push(2);
-    /// dl.push(3);
+    /// dl.push_back(1i);
+    /// dl.push_back(2);
+    /// dl.push_back(3);
     ///
     /// dl.rotate_backward();
     ///
@@ -264,10 +265,10 @@ impl<T> DList<T> {
     ///
     /// let mut a = DList::new();
     /// let mut b = DList::new();
-    /// a.push(1i);
-    /// a.push(2);
-    /// b.push(3i);
-    /// b.push(4);
+    /// a.push_back(1i);
+    /// a.push_back(2);
+    /// b.push_back(3i);
+    /// b.push_back(4);
     ///
     /// a.append(b);
     ///
@@ -275,6 +276,7 @@ impl<T> DList<T> {
     ///     println!("{}", e); // prints 1, then 2, then 3, then 4
     /// }
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn append(&mut self, mut other: DList<T>) {
         match self.list_tail.resolve() {
             None => *self = other,
@@ -305,10 +307,10 @@ impl<T> DList<T> {
     ///
     /// let mut a = DList::new();
     /// let mut b = DList::new();
-    /// a.push(1i);
-    /// a.push(2);
-    /// b.push(3i);
-    /// b.push(4);
+    /// a.push_back(1i);
+    /// a.push_back(2);
+    /// b.push_back(3i);
+    /// b.push_back(4);
     ///
     /// a.prepend(b);
     ///
@@ -317,6 +319,7 @@ impl<T> DList<T> {
     /// }
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn prepend(&mut self, mut other: DList<T>) {
         mem::swap(self, &mut other);
         self.append(other);
@@ -333,10 +336,10 @@ impl<T> DList<T> {
     /// use std::collections::DList;
     ///
     /// let mut a: DList<int> = DList::new();
-    /// a.push(2i);
-    /// a.push(4);
-    /// a.push(7);
-    /// a.push(8);
+    /// a.push_back(2i);
+    /// a.push_back(4);
+    /// a.push_back(7);
+    /// a.push_back(8);
     ///
     /// // insert 11 before the first odd number in the list
     /// a.insert_when(11, |&e, _| e % 2 == 1);
@@ -387,12 +390,14 @@ impl<T> DList<T> {
 
     /// Provides a forward iterator.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn iter<'a>(&'a self) -> Items<'a, T> {
         Items{nelem: self.len(), head: &self.list_head, tail: self.list_tail}
     }
 
     /// Provides a forward iterator with mutable references.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn iter_mut<'a>(&'a mut self) -> MutItems<'a, T> {
         let head_raw = match self.list_head {
             Some(ref mut h) => Rawlink::some(&mut **h),
@@ -408,6 +413,7 @@ impl<T> DList<T> {
 
     /// Consumes the list into an iterator yielding elements by value.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn into_iter(self) -> MoveItems<T> {
         MoveItems{list: self}
     }
@@ -416,6 +422,7 @@ impl<T> DList<T> {
     ///
     /// This operation should compute in O(1) time.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_empty(&self) -> bool {
         self.list_head.is_none()
     }
@@ -424,6 +431,7 @@ impl<T> DList<T> {
     ///
     /// This operation should compute in O(1) time.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn len(&self) -> uint {
         self.length
     }
@@ -432,6 +440,7 @@ impl<T> DList<T> {
     ///
     /// This operation should compute in O(n) time.
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn clear(&mut self) {
         *self = DList::new()
     }
@@ -467,6 +476,7 @@ impl<T> DList<T> {
     /// Adds an element first in the list.
     ///
     /// This operation should compute in O(1) time.
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn push_front(&mut self, elt: T) {
         self.push_front_node(box Node::new(elt))
     }
@@ -475,8 +485,15 @@ impl<T> DList<T> {
     /// empty.
     ///
     /// This operation should compute in O(1) time.
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn pop_front(&mut self) -> Option<T> {
         self.pop_front_node().map(|box Node{value, ..}| value)
+    }
+
+    /// Deprecated: Renamed to `push_back`.
+    #[deprecated = "Renamed to `push_back`"]
+    pub fn push(&mut self, elt: T) {
+        self.push_back(elt)
     }
 
     /// Appends an element to the back of a list
@@ -487,12 +504,19 @@ impl<T> DList<T> {
     /// use std::collections::DList;
     ///
     /// let mut d = DList::new();
-    /// d.push(1i);
-    /// d.push(3);
+    /// d.push_back(1i);
+    /// d.push_back(3);
     /// assert_eq!(3, *d.back().unwrap());
     /// ```
-    pub fn push(&mut self, elt: T) {
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn push_back(&mut self, elt: T) {
         self.push_back_node(box Node::new(elt))
+    }
+
+    /// Deprecated: Renamed to `pop_back`.
+    #[deprecated = "Renamed to `pop_back`"]
+    pub fn pop(&mut self) -> Option<T> {
+        self.pop_back()
     }
 
     /// Removes the last element from a list and returns it, or `None` if
@@ -504,12 +528,13 @@ impl<T> DList<T> {
     /// use std::collections::DList;
     ///
     /// let mut d = DList::new();
-    /// assert_eq!(d.pop(), None);
-    /// d.push(1i);
-    /// d.push(3);
-    /// assert_eq!(d.pop(), Some(3));
+    /// assert_eq!(d.pop_back(), None);
+    /// d.push_back(1i);
+    /// d.push_back(3);
+    /// assert_eq!(d.pop_back(), Some(3));
     /// ```
-    pub fn pop(&mut self) -> Option<T> {
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn pop_back(&mut self) -> Option<T> {
         self.pop_back_node().map(|box Node{value, ..}| value)
     }
 }
@@ -682,7 +707,7 @@ impl<A> Iterator<A> for MoveItems<A> {
 
 impl<A> DoubleEndedIterator<A> for MoveItems<A> {
     #[inline]
-    fn next_back(&mut self) -> Option<A> { self.list.pop() }
+    fn next_back(&mut self) -> Option<A> { self.list.pop_back() }
 }
 
 impl<A> FromIterator<A> for DList<A> {
@@ -695,7 +720,7 @@ impl<A> FromIterator<A> for DList<A> {
 
 impl<A> Extendable<A> for DList<A> {
     fn extend<T: Iterator<A>>(&mut self, mut iterator: T) {
-        for elt in iterator { self.push(elt); }
+        for elt in iterator { self.push_back(elt); }
     }
 }
 
@@ -801,21 +826,21 @@ mod tests {
     fn test_basic() {
         let mut m: DList<Box<int>> = DList::new();
         assert_eq!(m.pop_front(), None);
-        assert_eq!(m.pop(), None);
+        assert_eq!(m.pop_back(), None);
         assert_eq!(m.pop_front(), None);
         m.push_front(box 1);
         assert_eq!(m.pop_front(), Some(box 1));
-        m.push(box 2);
-        m.push(box 3);
+        m.push_back(box 2);
+        m.push_back(box 3);
         assert_eq!(m.len(), 2);
         assert_eq!(m.pop_front(), Some(box 2));
         assert_eq!(m.pop_front(), Some(box 3));
         assert_eq!(m.len(), 0);
         assert_eq!(m.pop_front(), None);
-        m.push(box 1);
-        m.push(box 3);
-        m.push(box 5);
-        m.push(box 7);
+        m.push_back(box 1);
+        m.push_back(box 3);
+        m.push_back(box 5);
+        m.push_back(box 7);
         assert_eq!(m.pop_front(), Some(box 1));
 
         let mut n = DList::new();
@@ -853,19 +878,19 @@ mod tests {
         {
             let mut m = DList::new();
             let mut n = DList::new();
-            n.push(2i);
+            n.push_back(2i);
             m.append(n);
             assert_eq!(m.len(), 1);
-            assert_eq!(m.pop(), Some(2));
+            assert_eq!(m.pop_back(), Some(2));
             check_links(&m);
         }
         {
             let mut m = DList::new();
             let n = DList::new();
-            m.push(2i);
+            m.push_back(2i);
             m.append(n);
             assert_eq!(m.len(), 1);
-            assert_eq!(m.pop(), Some(2));
+            assert_eq!(m.pop_back(), Some(2));
             check_links(&m);
         }
 
@@ -887,10 +912,10 @@ mod tests {
         {
             let mut m = DList::new();
             let mut n = DList::new();
-            n.push(2i);
+            n.push_back(2i);
             m.prepend(n);
             assert_eq!(m.len(), 1);
-            assert_eq!(m.pop(), Some(2));
+            assert_eq!(m.pop_back(), Some(2));
             check_links(&m);
         }
 
@@ -948,9 +973,9 @@ mod tests {
     #[test]
     fn test_iterator_clone() {
         let mut n = DList::new();
-        n.push(2i);
-        n.push(3);
-        n.push(4);
+        n.push_back(2i);
+        n.push_back(3);
+        n.push_back(4);
         let mut it = n.iter();
         it.next();
         let mut jt = it.clone();
@@ -1005,7 +1030,7 @@ mod tests {
         let mut n = DList::new();
         assert!(n.iter_mut().next().is_none());
         n.push_front(4i);
-        n.push(5);
+        n.push_back(5);
         let mut it = n.iter_mut();
         assert_eq!(it.size_hint(), (2, Some(2)));
         assert!(it.next().is_some());
@@ -1079,8 +1104,8 @@ mod tests {
         assert_eq!(n.pop_front(), Some(1));
 
         let mut m = DList::new();
-        m.push(2i);
-        m.push(4);
+        m.push_back(2i);
+        m.push_back(4);
         m.insert_ordered(3);
         check_links(&m);
         assert_eq!(vec![2,3,4], m.into_iter().collect::<Vec<int>>());
@@ -1117,7 +1142,7 @@ mod tests {
         assert!(n == m);
         n.push_front(1);
         assert!(n != m);
-        m.push(1);
+        m.push_back(1);
         assert!(n == m);
 
         let n = list_from([2i,3,4]);
@@ -1132,9 +1157,9 @@ mod tests {
 
       assert!(hash::hash(&x) == hash::hash(&y));
 
-      x.push(1i);
-      x.push(2);
-      x.push(3);
+      x.push_back(1i);
+      x.push_back(2);
+      x.push_back(3);
 
       y.push_front(3i);
       y.push_front(2);
@@ -1214,8 +1239,8 @@ mod tests {
             let r: u8 = rand::random();
             match r % 6 {
                 0 => {
-                    m.pop();
-                    v.pop();
+                    m.pop_back();
+                    v.pop_back();
                 }
                 1 => {
                     m.pop_front();
@@ -1226,8 +1251,8 @@ mod tests {
                     v.insert(0, -i);
                 }
                 3 | 5 | _ => {
-                    m.push(i);
-                    v.push(i);
+                    m.push_back(i);
+                    v.push_back(i);
                 }
             }
         }
@@ -1262,7 +1287,7 @@ mod tests {
     fn bench_push_back(b: &mut test::Bencher) {
         let mut m: DList<int> = DList::new();
         b.iter(|| {
-            m.push(0);
+            m.push_back(0);
         })
     }
 
@@ -1270,8 +1295,8 @@ mod tests {
     fn bench_push_back_pop_back(b: &mut test::Bencher) {
         let mut m: DList<int> = DList::new();
         b.iter(|| {
-            m.push(0);
-            m.pop();
+            m.push_back(0);
+            m.pop_back();
         })
     }
 

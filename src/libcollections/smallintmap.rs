@@ -42,14 +42,14 @@ use hash::Hash;
 ///     println!("The end is near!");
 /// }
 ///
-/// assert_eq!(months.find(&1), Some(&"Jan"));
+/// assert_eq!(months.get(&1), Some(&"Jan"));
 ///
-/// match months.find_mut(&3) {
+/// match months.get_mut(&3) {
 ///     Some(value) => *value = "Venus",
 ///     None => (),
 /// }
 ///
-/// assert_eq!(months.find(&3), Some(&"Venus"));
+/// assert_eq!(months.get(&3), Some(&"Venus"));
 ///
 /// // Print out all months
 /// for (key, value) in months.iter() {
@@ -99,6 +99,7 @@ impl<V> SmallIntMap<V> {
     /// use std::collections::SmallIntMap;
     /// let mut map: SmallIntMap<&str> = SmallIntMap::new();
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn new() -> SmallIntMap<V> { SmallIntMap{v: vec!()} }
 
     /// Creates an empty `SmallIntMap` with space for at least `capacity`
@@ -110,18 +111,21 @@ impl<V> SmallIntMap<V> {
     /// use std::collections::SmallIntMap;
     /// let mut map: SmallIntMap<&str> = SmallIntMap::with_capacity(10);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn with_capacity(capacity: uint) -> SmallIntMap<V> {
         SmallIntMap { v: Vec::with_capacity(capacity) }
     }
 
     /// Returns an iterator visiting all keys in ascending order by the keys.
     /// The iterator's element type is `uint`.
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn keys<'r>(&'r self) -> Keys<'r, V> {
         self.iter().map(|(k, _v)| k)
     }
 
     /// Returns an iterator visiting all values in ascending order by the keys.
     /// The iterator's element type is `&'r V`.
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn values<'r>(&'r self) -> Values<'r, V> {
         self.iter().map(|(_k, v)| v)
     }
@@ -144,6 +148,7 @@ impl<V> SmallIntMap<V> {
     ///     println!("{}: {}", key, value);
     /// }
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn iter<'r>(&'r self) -> Entries<'r, V> {
         Entries {
             front: 0,
@@ -174,6 +179,7 @@ impl<V> SmallIntMap<V> {
     ///     assert_eq!(value, &"x");
     /// }
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn iter_mut<'r>(&'r mut self) -> MutEntries<'r, V> {
         MutEntries {
             front: 0,
@@ -201,6 +207,7 @@ impl<V> SmallIntMap<V> {
     ///
     /// assert_eq!(vec, vec![(1, "a"), (2, "b"), (3, "c")]);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn into_iter(&mut self)
         -> FilterMap<(uint, Option<V>), (uint, V),
                 Enumerate<vec::MoveItems<Option<V>>>>
@@ -223,6 +230,7 @@ impl<V> SmallIntMap<V> {
     /// a.insert(1, "a");
     /// assert_eq!(a.len(), 1);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn len(&self) -> uint {
         self.v.iter().filter(|elt| elt.is_some()).count()
     }
@@ -239,6 +247,7 @@ impl<V> SmallIntMap<V> {
     /// a.insert(1, "a");
     /// assert!(!a.is_empty());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_empty(&self) -> bool {
         self.v.iter().all(|elt| elt.is_none())
     }
@@ -255,7 +264,14 @@ impl<V> SmallIntMap<V> {
     /// a.clear();
     /// assert!(a.is_empty());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn clear(&mut self) { self.v.clear() }
+
+    /// Deprecated: Renamed to `get`.
+    #[deprecated = "Renamed to `get`"]
+    pub fn find(&self, key: &uint) -> Option<&V> {
+        self.get(key)
+    }
 
     /// Returns a reference to the value corresponding to the key.
     ///
@@ -266,10 +282,11 @@ impl<V> SmallIntMap<V> {
     ///
     /// let mut map = SmallIntMap::new();
     /// map.insert(1, "a");
-    /// assert_eq!(map.find(&1), Some(&"a"));
-    /// assert_eq!(map.find(&2), None);
+    /// assert_eq!(map.get(&1), Some(&"a"));
+    /// assert_eq!(map.get(&2), None);
     /// ```
-    pub fn find<'a>(&'a self, key: &uint) -> Option<&'a V> {
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn get(&self, key: &uint) -> Option<&V> {
         if *key < self.v.len() {
             match self.v[*key] {
               Some(ref value) => Some(value),
@@ -293,8 +310,15 @@ impl<V> SmallIntMap<V> {
     /// assert_eq!(map.contains_key(&2), false);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn contains_key(&self, key: &uint) -> bool {
-        self.find(key).is_some()
+        self.get(key).is_some()
+    }
+
+    /// Deprecated: Renamed to `get_mut`.
+    #[deprecated = "Renamed to `get_mut`"]
+    pub fn find_mut(&mut self, key: &uint) -> Option<&mut V> {
+        self.get_mut(key)
     }
 
     /// Returns a mutable reference to the value corresponding to the key.
@@ -306,13 +330,14 @@ impl<V> SmallIntMap<V> {
     ///
     /// let mut map = SmallIntMap::new();
     /// map.insert(1, "a");
-    /// match map.find_mut(&1) {
+    /// match map.get_mut(&1) {
     ///     Some(x) => *x = "b",
     ///     None => (),
     /// }
     /// assert_eq!(map[1], "b");
     /// ```
-    pub fn find_mut<'a>(&'a mut self, key: &uint) -> Option<&'a mut V> {
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn get_mut(&mut self, key: &uint) -> Option<&mut V> {
         if *key < self.v.len() {
             match *(&mut self.v[*key]) {
               Some(ref mut value) => Some(value),
@@ -323,45 +348,10 @@ impl<V> SmallIntMap<V> {
         }
     }
 
-    /// Inserts a key-value pair into the map. An existing value for a
-    /// key is replaced by the new value. Returns `true` if the key did
-    /// not already exist in the map.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use std::collections::SmallIntMap;
-    ///
-    /// let mut map = SmallIntMap::new();
-    /// assert_eq!(map.insert(2, "value"), true);
-    /// assert_eq!(map.insert(2, "value2"), false);
-    /// assert_eq!(map[2], "value2");
-    /// ```
-    pub fn insert(&mut self, key: uint, value: V) -> bool {
-        let exists = self.contains_key(&key);
-        let len = self.v.len();
-        if len <= key {
-            self.v.grow_fn(key - len + 1, |_| None);
-        }
-        self.v[key] = Some(value);
-        !exists
-    }
-
-    /// Removes a key-value pair from the map. Returns `true` if the key
-    /// was present in the map.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use std::collections::SmallIntMap;
-    ///
-    /// let mut map = SmallIntMap::new();
-    /// assert_eq!(map.remove(&1), false);
-    /// map.insert(1, "a");
-    /// assert_eq!(map.remove(&1), true);
-    /// ```
-    pub fn remove(&mut self, key: &uint) -> bool {
-        self.pop(key).is_some()
+    /// Deprecated: Renamed to `insert`.
+    #[deprecated = "Renamed to `insert`"]
+    pub fn swap(&mut self, key: uint, value: V) -> Option<V> {
+        self.insert(key, value)
     }
 
     /// Inserts a key-value pair from the map. If the key already had a value
@@ -373,20 +363,27 @@ impl<V> SmallIntMap<V> {
     /// use std::collections::SmallIntMap;
     ///
     /// let mut map = SmallIntMap::new();
-    /// assert_eq!(map.swap(37, "a"), None);
+    /// assert_eq!(map.insert(37, "a"), None);
     /// assert_eq!(map.is_empty(), false);
     ///
     /// map.insert(37, "b");
-    /// assert_eq!(map.swap(37, "c"), Some("b"));
+    /// assert_eq!(map.insert(37, "c"), Some("b"));
     /// assert_eq!(map[37], "c");
     /// ```
-    pub fn swap(&mut self, key: uint, value: V) -> Option<V> {
-        match self.find_mut(&key) {
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn insert(&mut self, key: uint, value: V) -> Option<V> {
+        match self.get_mut(&key) {
             Some(loc) => { return Some(replace(loc, value)); }
             None => ()
         }
         self.insert(key, value);
         return None;
+    }
+
+    /// Deprecated: Renamed to `remove`.
+    #[deprecated = "Renamed to `remove`"]
+    pub fn pop(&mut self, key: &uint) -> Option<V> {
+        self.remove(key)
     }
 
     /// Removes a key from the map, returning the value at the key if the key
@@ -399,10 +396,11 @@ impl<V> SmallIntMap<V> {
     ///
     /// let mut map = SmallIntMap::new();
     /// map.insert(1, "a");
-    /// assert_eq!(map.pop(&1), Some("a"));
-    /// assert_eq!(map.pop(&1), None);
+    /// assert_eq!(map.remove(&1), Some("a"));
+    /// assert_eq!(map.remove(&1), None);
     /// ```
-    pub fn pop(&mut self, key: &uint) -> Option<V> {
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn remove(&mut self, key: &uint) -> Option<V> {
         if *key >= self.v.len() {
             return None;
         }
@@ -460,11 +458,11 @@ impl<V:Clone> SmallIntMap<V> {
                            val: V,
                            ff: |uint, V, V| -> V)
                            -> bool {
-        let new_val = match self.find(&key) {
+        let new_val = match self.get(&key) {
             None => val,
             Some(orig) => ff(key, (*orig).clone(), val)
         };
-        self.insert(key, new_val)
+        self.insert(key, new_val).is_none()
     }
 }
 
@@ -514,14 +512,14 @@ impl<V> Extendable<(uint, V)> for SmallIntMap<V> {
 impl<V> Index<uint, V> for SmallIntMap<V> {
     #[inline]
     fn index<'a>(&'a self, i: &uint) -> &'a V {
-        self.find(i).expect("key not present")
+        self.get(i).expect("key not present")
     }
 }
 
 impl<V> IndexMut<uint, V> for SmallIntMap<V> {
     #[inline]
     fn index_mut<'a>(&'a mut self, i: &uint) -> &'a mut V {
-        self.find_mut(i).expect("key not present")
+        self.get_mut(i).expect("key not present")
     }
 }
 
@@ -615,16 +613,16 @@ mod test_map {
     use super::SmallIntMap;
 
     #[test]
-    fn test_find_mut() {
+    fn test_get_mut() {
         let mut m = SmallIntMap::new();
         assert!(m.insert(1, 12i));
         assert!(m.insert(2, 8));
         assert!(m.insert(5, 14));
         let new = 100;
-        match m.find_mut(&5) {
+        match m.get_mut(&5) {
             None => panic!(), Some(x) => *x = new
         }
-        assert_eq!(m.find(&5), Some(&new));
+        assert_eq!(m.get(&5), Some(&new));
     }
 
     #[test]
@@ -651,9 +649,9 @@ mod test_map {
         assert!(map.insert(14, 22));
         map.clear();
         assert!(map.is_empty());
-        assert!(map.find(&5).is_none());
-        assert!(map.find(&11).is_none());
-        assert!(map.find(&14).is_none());
+        assert!(map.get(&5).is_none());
+        assert!(map.get(&11).is_none());
+        assert!(map.get(&14).is_none());
     }
 
     #[test]
@@ -678,28 +676,28 @@ mod test_map {
         map.update_with_key(3, 2, add_more_to_count);
 
         // check the total counts
-        assert_eq!(map.find(&3).unwrap(), &10);
-        assert_eq!(map.find(&5).unwrap(), &3);
-        assert_eq!(map.find(&9).unwrap(), &1);
+        assert_eq!(map.get(&3).unwrap(), &10);
+        assert_eq!(map.get(&5).unwrap(), &3);
+        assert_eq!(map.get(&9).unwrap(), &1);
 
         // sadly, no sevens were counted
-        assert!(map.find(&7).is_none());
+        assert!(map.get(&7).is_none());
     }
 
     #[test]
-    fn test_swap() {
+    fn test_insert() {
         let mut m = SmallIntMap::new();
-        assert_eq!(m.swap(1, 2i), None);
-        assert_eq!(m.swap(1, 3i), Some(2));
-        assert_eq!(m.swap(1, 4i), Some(3));
+        assert_eq!(m.insert(1, 2i), None);
+        assert_eq!(m.insert(1, 3i), Some(2));
+        assert_eq!(m.insert(1, 4i), Some(3));
     }
 
     #[test]
-    fn test_pop() {
+    fn test_remove() {
         let mut m = SmallIntMap::new();
         m.insert(1, 2i);
-        assert_eq!(m.pop(&1), Some(2));
-        assert_eq!(m.pop(&1), None);
+        assert_eq!(m.remove(&1), Some(2));
+        assert_eq!(m.remove(&1), None);
     }
 
     #[test]
@@ -948,7 +946,7 @@ mod test_map {
         let map: SmallIntMap<char> = xs.iter().map(|&x| x).collect();
 
         for &(k, v) in xs.iter() {
-            assert_eq!(map.find(&k), Some(&v));
+            assert_eq!(map.get(&k), Some(&v));
         }
     }
 
@@ -1022,7 +1020,7 @@ mod bench {
         let mut m : SmallIntMap<uint> = SmallIntMap::new();
         find_rand_n(100, &mut m, b,
                     |m, i| { m.insert(i, 1); },
-                    |m, i| { m.find(&i); });
+                    |m, i| { m.get(&i); });
     }
 
     #[bench]
@@ -1030,7 +1028,7 @@ mod bench {
         let mut m : SmallIntMap<uint> = SmallIntMap::new();
         find_rand_n(10_000, &mut m, b,
                     |m, i| { m.insert(i, 1); },
-                    |m, i| { m.find(&i); });
+                    |m, i| { m.get(&i); });
     }
 
     // Find seq
@@ -1039,7 +1037,7 @@ mod bench {
         let mut m : SmallIntMap<uint> = SmallIntMap::new();
         find_seq_n(100, &mut m, b,
                    |m, i| { m.insert(i, 1); },
-                   |m, i| { m.find(&i); });
+                   |m, i| { m.get(&i); });
     }
 
     #[bench]
@@ -1047,6 +1045,6 @@ mod bench {
         let mut m : SmallIntMap<uint> = SmallIntMap::new();
         find_seq_n(10_000, &mut m, b,
                    |m, i| { m.insert(i, 1); },
-                   |m, i| { m.find(&i); });
+                   |m, i| { m.get(&i); });
     }
 }

@@ -58,6 +58,7 @@ impl<E:CLike> EnumSet<E> {
     }
 
     /// Returns true if the `EnumSet` is empty.
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_empty(&self) -> bool {
         self.bits == 0
     }
@@ -73,6 +74,7 @@ impl<E:CLike> EnumSet<E> {
     }
 
     /// Returns `true` if a given `EnumSet` is included in an `EnumSet`.
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn contains(&self, e: EnumSet<E>) -> bool {
         (self.bits & e.bits) == e.bits
     }
