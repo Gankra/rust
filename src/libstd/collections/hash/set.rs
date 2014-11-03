@@ -24,6 +24,10 @@ use result::{Ok, Err};
 
 use super::map::{HashMap, Entries, MoveEntries, INITIAL_CAPACITY};
 
+// FIXME(conventions): implement BitOr, BitAnd, BitXor, and Sub
+// FIXME(conventions): implement union_with family of fns
+// FIXME(conventions): update capacity management to match other collections (no auto-shrink)
+
 
 // Future Optimization (FIXME!)
 // =============================
@@ -104,6 +108,7 @@ impl<T: Hash + Eq> HashSet<T, RandomSipHasher> {
     /// let mut set: HashSet<int> = HashSet::new();
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn new() -> HashSet<T, RandomSipHasher> {
         HashSet::with_capacity(INITIAL_CAPACITY)
     }
@@ -118,6 +123,7 @@ impl<T: Hash + Eq> HashSet<T, RandomSipHasher> {
     /// let mut set: HashSet<int> = HashSet::with_capacity(10);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn with_capacity(capacity: uint) -> HashSet<T, RandomSipHasher> {
         HashSet { map: HashMap::with_capacity(capacity) }
     }
@@ -241,14 +247,9 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     ///     println!("{}", x);
     /// }
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn iter<'a>(&'a self) -> SetItems<'a, T> {
         self.map.keys()
-    }
-
-    /// Deprecated: use `into_iter`.
-    #[deprecated = "use into_iter"]
-    pub fn move_iter(self) -> SetMoveItems<T> {
-        self.into_iter()
     }
 
     /// Creates a consuming iterator, that is, one that moves each value out
@@ -271,6 +272,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     ///     println!("{}", x);
     /// }
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn into_iter(self) -> SetMoveItems<T> {
         self.map.into_iter().map(|(k, _)| k)
     }
@@ -297,6 +299,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// let diff: HashSet<int> = b.difference(&a).map(|&x| x).collect();
     /// assert_eq!(diff, [4i].iter().map(|&x| x).collect());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn difference<'a>(&'a self, other: &'a HashSet<T, H>) -> SetAlgebraItems<'a, T, H> {
         Repeat::new(other).zip(self.iter())
             .filter_map(|(other, elt)| {
@@ -324,6 +327,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// assert_eq!(diff1, diff2);
     /// assert_eq!(diff1, [1i, 4].iter().map(|&x| x).collect());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn symmetric_difference<'a>(&'a self, other: &'a HashSet<T, H>)
         -> Chain<SetAlgebraItems<'a, T, H>, SetAlgebraItems<'a, T, H>> {
         self.difference(other).chain(other.difference(self))
@@ -346,6 +350,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// let diff: HashSet<int> = a.intersection(&b).map(|&x| x).collect();
     /// assert_eq!(diff, [2i, 3].iter().map(|&x| x).collect());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn intersection<'a>(&'a self, other: &'a HashSet<T, H>)
         -> SetAlgebraItems<'a, T, H> {
         Repeat::new(other).zip(self.iter())
@@ -371,6 +376,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// let diff: HashSet<int> = a.union(&b).map(|&x| x).collect();
     /// assert_eq!(diff, [1i, 2, 3, 4].iter().map(|&x| x).collect());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn union<'a>(&'a self, other: &'a HashSet<T, H>)
         -> Chain<SetItems<'a, T>, SetAlgebraItems<'a, T, H>> {
         self.iter().chain(other.difference(self))
@@ -388,6 +394,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// v.insert(1u);
     /// assert_eq!(v.len(), 1);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn len(&self) -> uint { self.map.len() }
 
     /// Returns true if the set contains no elements
@@ -402,6 +409,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// v.insert(1u);
     /// assert!(!v.is_empty());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_empty(&self) -> bool { self.map.len() == 0 }
 
     /// Clears the set, removing all values.
@@ -416,6 +424,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// v.clear();
     /// assert!(v.is_empty());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn clear(&mut self) { self.map.clear() }
 
     /// Returns `true` if the set contains a value.
@@ -429,6 +438,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// assert_eq!(set.contains(&1), true);
     /// assert_eq!(set.contains(&4), false);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn contains(&self, value: &T) -> bool { self.map.contains_key(value) }
 
     /// Returns `true` if the set has no elements in common with `other`.
@@ -448,6 +458,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// b.insert(1);
     /// assert_eq!(a.is_disjoint(&b), false);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_disjoint(&self, other: &HashSet<T, H>) -> bool {
         self.iter().all(|v| !other.contains(v))
     }
@@ -468,6 +479,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// set.insert(4);
     /// assert_eq!(set.is_subset(&sup), false);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_subset(&self, other: &HashSet<T, H>) -> bool {
         self.iter().all(|v| other.contains(v))
     }
@@ -492,6 +504,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// assert_eq!(set.is_superset(&sub), true);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn is_superset(&self, other: &HashSet<T, H>) -> bool {
         other.is_subset(self)
     }
@@ -510,7 +523,8 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// assert_eq!(set.insert(2), false);
     /// assert_eq!(set.len(), 1);
     /// ```
-    pub fn insert(&mut self, value: T) -> bool { self.map.insert(value, ()) }
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn insert(&mut self, value: T) -> bool { self.map.insert(value, ()).is_none() }
 
     /// Removes a value from the set. Returns `true` if the value was
     /// present in the set.
@@ -526,7 +540,8 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// assert_eq!(set.remove(&2), true);
     /// assert_eq!(set.remove(&2), false);
     /// ```
-    pub fn remove(&mut self, value: &T) -> bool { self.map.remove(value) }
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn remove(&mut self, value: &T) -> bool { self.map.remove(value).is_some() }
 }
 
 impl<T: Eq + Hash<S>, S, H: Hasher<S>> PartialEq for HashSet<T, H> {

@@ -891,7 +891,7 @@ impl Json {
     /// Otherwise, returns None.
     pub fn find<'a>(&'a self, key: &string::String) -> Option<&'a Json>{
         match self {
-            &Object(ref map) => map.find(key),
+            &Object(ref map) => map.get(key),
             _ => None
         }
     }
@@ -916,7 +916,7 @@ impl Json {
     pub fn search<'a>(&'a self, key: &string::String) -> Option<&'a Json> {
         match self {
             &Object(ref map) => {
-                match map.find(key) {
+                match map.get(key) {
                     Some(json_value) => Some(json_value),
                     None => {
                         let mut value : Option<&'a Json> = None;
@@ -2060,7 +2060,7 @@ impl ::Decoder<DecoderError> for Decoder {
         let name = match self.pop() {
             String(s) => s,
             Object(mut o) => {
-                let n = match o.pop(&"variant".to_string()) {
+                let n = match o.remove(&"variant".to_string()) {
                     Some(String(s)) => s,
                     Some(val) => {
                         return Err(ExpectedError("String".to_string(), format!("{}", val)))
@@ -2069,7 +2069,7 @@ impl ::Decoder<DecoderError> for Decoder {
                         return Err(MissingFieldError("variant".to_string()))
                     }
                 };
-                match o.pop(&"fields".to_string()) {
+                match o.remove(&"fields".to_string()) {
                     Some(List(l)) => {
                         for field in l.into_iter().rev() {
                             self.stack.push(field);
@@ -2139,7 +2139,7 @@ impl ::Decoder<DecoderError> for Decoder {
         debug!("read_struct_field(name={}, idx={})", name, idx);
         let mut obj = try!(expect!(self.pop(), Object));
 
-        let value = match obj.pop(&name.to_string()) {
+        let value = match obj.remove(&name.to_string()) {
             None => {
                 // Add a Null and try to parse it as an Option<_>
                 // to get None as a default value.

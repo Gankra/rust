@@ -545,7 +545,7 @@ impl<'a, 'tcx> LookupContext<'a, 'tcx> {
         debug!("push_extension_candidates(expr_id={})", expr_id);
 
         let mut duplicates = HashSet::new();
-        let opt_applicable_traits = self.fcx.ccx.trait_map.find(&expr_id);
+        let opt_applicable_traits = self.fcx.ccx.trait_map.get(&expr_id);
         for applicable_traits in opt_applicable_traits.into_iter() {
             for &trait_did in applicable_traits.iter() {
                 if duplicates.insert(trait_did) {
@@ -779,7 +779,7 @@ impl<'a, 'tcx> LookupContext<'a, 'tcx> {
         // metadata if necessary.
         ty::populate_implementations_for_type_if_necessary(self.tcx(), did);
 
-        for impl_infos in self.tcx().inherent_impls.borrow().find(&did).iter() {
+        for impl_infos in self.tcx().inherent_impls.borrow().get(&did).iter() {
             for impl_did in impl_infos.iter() {
                 self.push_candidates_from_inherent_impl(*impl_did);
             }
@@ -1492,7 +1492,7 @@ impl<'a, 'tcx> LookupContext<'a, 'tcx> {
                                             .inh
                                             .adjustments
                                             .borrow()
-                                            .find(&expr.id) {
+                                            .get(&expr.id) {
                 Some(&ty::AdjustDerefRef(ty::AutoDerefRef {
                     autoderefs: autoderef_count,
                     autoref: _
@@ -1656,7 +1656,7 @@ fn impl_method(tcx: &ty::ctxt,
                -> Option<Rc<ty::Method>>
 {
     let impl_items = tcx.impl_items.borrow();
-    let impl_items = impl_items.find(&impl_def_id).unwrap();
+    let impl_items = impl_items.get(&impl_def_id).unwrap();
     impl_items
         .iter()
         .map(|&did| ty::impl_or_trait_item(tcx, did.def_id()))

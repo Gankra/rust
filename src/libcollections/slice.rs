@@ -1523,10 +1523,10 @@ mod tests {
     fn test_capacity() {
         let mut v = vec![0u64];
         v.reserve_exact(10u);
-        assert_eq!(v.capacity(), 10u);
+        assert_eq!(v.capacity(), 11u);
         let mut v = vec![0u32];
         v.reserve_exact(10u);
-        assert_eq!(v.capacity(), 10u);
+        assert_eq!(v.capacity(), 12u);
     }
 
     #[test]

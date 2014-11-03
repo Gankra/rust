@@ -21,6 +21,9 @@ use std::hash::{Writer, Hash};
 
 use vec::Vec;
 
+// FIXME(conventions): implement bounded iterators
+// FIXME(conventions): replace rev_iter(_mut) by making iter(_mut) DoubleEnded
+
 /// This is implemented as an AA tree, which is a simplified variation of
 /// a red-black tree where red (horizontal) nodes can only be added
 /// as a right child. The time complexity is the same, and re-balancing
@@ -60,7 +63,7 @@ use vec::Vec;
 /// }
 ///
 /// for key in range(0, 4) {
-///     match map.find(&key) {
+///     match map.get(&key) {
 ///         Some(val) => println!("{} has a value: {}", key, val),
 ///         None => println!("{} not in map", key),
 ///     }
@@ -188,14 +191,14 @@ impl<K: Ord, V> Default for TreeMap<K,V> {
 impl<K: Ord, V> Index<K, V> for TreeMap<K, V> {
     #[inline]
     fn index<'a>(&'a self, i: &K) -> &'a V {
-        self.find(i).expect("no entry found for key")
+        self.get(i).expect("no entry found for key")
     }
 }
 
 impl<K: Ord, V> IndexMut<K, V> for TreeMap<K, V> {
     #[inline]
     fn index_mut<'a>(&'a mut self, i: &K) -> &'a mut V {
-        self.find_mut(i).expect("no entry found for key")
+        self.get_mut(i).expect("no entry found for key")
     }
 }
 
@@ -208,6 +211,7 @@ impl<K: Ord, V> TreeMap<K, V> {
     /// use std::collections::TreeMap;
     /// let mut map: TreeMap<&str, int> = TreeMap::new();
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn new() -> TreeMap<K, V> { TreeMap{root: None, length: 0} }
 
     /// Gets a lazy iterator over the keys in the map, in ascending order.
@@ -226,6 +230,7 @@ impl<K: Ord, V> TreeMap<K, V> {
     ///     println!("{}", x);
     /// }
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> {
         self.iter().map(|(k, _v)| k)
     }
@@ -247,6 +252,7 @@ impl<K: Ord, V> TreeMap<K, V> {
     ///     println!("{}", x);
     /// }
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn values<'a>(&'a self) -> Values<'a, K, V> {
         self.iter().map(|(_k, v)| v)
     }
@@ -267,6 +273,7 @@ impl<K: Ord, V> TreeMap<K, V> {
     ///     println!("{}: {}", key, value);
     /// }
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn iter<'a>(&'a self) -> Entries<'a, K, V> {
         Entries {
             stack: vec!(),
@@ -314,10 +321,11 @@ impl<K: Ord, V> TreeMap<K, V> {
     ///     if key == &"b" { break }
     /// }
     ///
-    /// assert_eq!(map.find(&"a"), Some(&11));
-    /// assert_eq!(map.find(&"b"), Some(&12));
-    /// assert_eq!(map.find(&"c"), Some(&3));
+    /// assert_eq!(map.get(&"a"), Some(&11));
+    /// assert_eq!(map.get(&"b"), Some(&12));
+    /// assert_eq!(map.get(&"c"), Some(&3));
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn iter_mut<'a>(&'a mut self) -> MutEntries<'a, K, V> {
         MutEntries {
             stack: vec!(),
@@ -345,15 +353,15 @@ impl<K: Ord, V> TreeMap<K, V> {
     ///     if key == &"b" { break }
     /// }
     ///
-    /// assert_eq!(map.find(&"a"), Some(&1));
-    /// assert_eq!(map.find(&"b"), Some(&12));
-    /// assert_eq!(map.find(&"c"), Some(&13));
+    /// assert_eq!(map.get(&"a"), Some(&1));
+    /// assert_eq!(map.get(&"b"), Some(&12));
+    /// assert_eq!(map.get(&"c"), Some(&13));
     /// ```
     pub fn rev_iter_mut<'a>(&'a mut self) -> RevMutEntries<'a, K, V> {
         RevMutEntries{iter: self.iter_mut()}
     }
 
-    /// Gets a lazy iterator that consumes the TreeMap.
+    /// Gets a lazy iterator that consumes the treemap.
     ///
     /// # Example
     ///
@@ -368,6 +376,7 @@ impl<K: Ord, V> TreeMap<K, V> {
     /// let vec: Vec<(&str, int)> = map.into_iter().collect();
     /// assert_eq!(vec, vec![("a", 1), ("b", 2), ("c", 3)]);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn into_iter(self) -> MoveEntries<K, V> {
         let TreeMap { root, length } = self;
         let stk = match root {
@@ -392,6 +401,7 @@ impl<K: Ord, V> TreeMap<K, V> {
     /// a.insert(1u, "a");
     /// assert_eq!(a.len(), 1);
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn len(&self) -> uint { self.length }
 
     /// Return true if the map contains no elements.
@@ -406,6 +416,7 @@ impl<K: Ord, V> TreeMap<K, V> {
     /// a.insert(1u, "a");
     /// assert!(!a.is_empty());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     #[inline]
     pub fn is_empty(&self) -> bool { self.len() == 0 }
 
@@ -421,9 +432,16 @@ impl<K: Ord, V> TreeMap<K, V> {
     /// a.clear();
     /// assert!(a.is_empty());
     /// ```
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn clear(&mut self) {
         self.root = None;
         self.length = 0
+    }
+
+    /// Deprecated: Renamed to `get`.
+    #[deprecated = "Renamed to `get`"]
+    pub fn find(&self, key: &K) -> Option<&V> {
+        self.get(key)
     }
 
     /// Returns a reference to the value corresponding to the key.
@@ -435,11 +453,12 @@ impl<K: Ord, V> TreeMap<K, V> {
     ///
     /// let mut map = TreeMap::new();
     /// map.insert(1u, "a");
-    /// assert_eq!(map.find(&1), Some(&"a"));
-    /// assert_eq!(map.find(&2), None);
+    /// assert_eq!(map.get(&1), Some(&"a"));
+    /// assert_eq!(map.get(&2), None);
     /// ```
     #[inline]
-    pub fn find<'a>(&'a self, key: &K) -> Option<&'a V> {
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn get(&self, key: &K) -> Option<&V> {
         tree_find_with(&self.root, |k2| key.cmp(k2))
     }
 
@@ -456,8 +475,15 @@ impl<K: Ord, V> TreeMap<K, V> {
     /// assert_eq!(map.contains_key(&2), false);
     /// ```
     #[inline]
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
     pub fn contains_key(&self, key: &K) -> bool {
-        self.find(key).is_some()
+        self.get(key).is_some()
+    }
+
+    /// Deprecated: Renamed to `get_mut`.
+    #[deprecated = "Renamed to `get_mut`"]
+    pub fn find_mut(&mut self, key: &K) -> Option<&mut V> {
+        self.get_mut(key)
     }
 
     /// Returns a mutable reference to the value corresponding to the key.
@@ -469,52 +495,22 @@ impl<K: Ord, V> TreeMap<K, V> {
     ///
     /// let mut map = TreeMap::new();
     /// map.insert(1u, "a");
-    /// match map.find_mut(&1) {
+    /// match map.get_mut(&1) {
     ///     Some(x) => *x = "b",
     ///     None => (),
     /// }
     /// assert_eq!(map[1], "b");
     /// ```
     #[inline]
-    pub fn find_mut<'a>(&'a mut self, key: &K) -> Option<&'a mut V> {
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         tree_find_with_mut(&mut self.root, |x| key.cmp(x))
     }
 
-    /// Inserts a key-value pair into the map. An existing value for a
-    /// key is replaced by the new value. Returns `true` if the key did
-    /// not already exist in the map.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use std::collections::TreeMap;
-    ///
-    /// let mut map = TreeMap::new();
-    /// assert_eq!(map.insert(2u, "value"), true);
-    /// assert_eq!(map.insert(2, "value2"), false);
-    /// assert_eq!(map[2], "value2");
-    /// ```
-    #[inline]
-    pub fn insert(&mut self, key: K, value: V) -> bool {
-        self.swap(key, value).is_none()
-    }
-
-    /// Removes a key-value pair from the map. Returns `true` if the key
-    /// was present in the map.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use std::collections::TreeMap;
-    ///
-    /// let mut map = TreeMap::new();
-    /// assert_eq!(map.remove(&1u), false);
-    /// map.insert(1, "a");
-    /// assert_eq!(map.remove(&1), true);
-    /// ```
-    #[inline]
-    pub fn remove(&mut self, key: &K) -> bool {
-        self.pop(key).is_some()
+    /// Deprecated: Renamed to `insert`.
+    #[deprecated = "Renamed to `insert`"]
+    pub fn swap(&mut self, key: K, value: V) -> Option<V> {
+        self.insert(key, value)
     }
 
     /// Inserts a key-value pair from the map. If the key already had a value
@@ -526,17 +522,24 @@ impl<K: Ord, V> TreeMap<K, V> {
     /// use std::collections::TreeMap;
     ///
     /// let mut map = TreeMap::new();
-    /// assert_eq!(map.swap(37u, "a"), None);
+    /// assert_eq!(map.insert(37u, "a"), None);
     /// assert_eq!(map.is_empty(), false);
     ///
     /// map.insert(37, "b");
-    /// assert_eq!(map.swap(37, "c"), Some("b"));
+    /// assert_eq!(map.insert(37, "c"), Some("b"));
     /// assert_eq!(map[37], "c");
     /// ```
-    pub fn swap(&mut self, key: K, value: V) -> Option<V> {
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let ret = insert(&mut self.root, key, value);
         if ret.is_none() { self.length += 1 }
         ret
+    }
+
+    /// Deprecated: Renamed to `remove`.
+    #[deprecated = "Renamed to `remove`"]
+    pub fn pop(&mut self, key: &K) -> Option<V> {
+        self.remove(key)
     }
 
     /// Removes a key from the map, returning the value at the key if the key
@@ -549,10 +552,11 @@ impl<K: Ord, V> TreeMap<K, V> {
     ///
     /// let mut map = TreeMap::new();
     /// map.insert(1u, "a");
-    /// assert_eq!(map.pop(&1), Some("a"));
-    /// assert_eq!(map.pop(&1), None);
+    /// assert_eq!(map.remove(&1), Some("a"));
+    /// assert_eq!(map.remove(&1), None);
     /// ```
-    pub fn pop(&mut self, key: &K) -> Option<V> {
+    #[unstable = "matches collection reform specification, waiting for dust to settle"]
+    pub fn remove(&mut self, key: &K) -> Option<V> {
         let ret = remove(&mut self.root, key);
         if ret.is_some() { self.length -= 1 }
         ret
@@ -567,7 +571,7 @@ impl<K, V> TreeMap<K, V> {
     /// # Example
     ///
     /// ```
-    /// use std::collections::TreeMap;
+    /// use collections::treemap::TreeMap;
     ///
     /// fn get_headers() -> TreeMap<String, String> {
     ///     let mut result = TreeMap::new();
@@ -578,7 +582,7 @@ impl<K, V> TreeMap<K, V> {
     ///
     /// let headers = get_headers();
     /// let ua_key = "User-Agent";
-    /// let ua = headers.find_with(|k| {
+    /// let ua = headers.get_with(|k| {
     ///    ua_key.cmp(&k.as_slice())
     /// });
     ///
@@ -596,19 +600,17 @@ impl<K, V> TreeMap<K, V> {
     /// # Example
     ///
     /// ```
-    /// use std::collections::TreeMap;
-    ///
-    /// let mut t = TreeMap::new();
+    /// let mut t = collections::treemap::TreeMap::new();
     /// t.insert("Content-Type", "application/xml");
     /// t.insert("User-Agent", "Curl-Rust/0.1");
     ///
     /// let new_ua = "Safari/156.0";
-    /// match t.find_with_mut(|k| "User-Agent".cmp(k)) {
+    /// match t.get_with_mut(|k| "User-Agent".cmp(k)) {
     ///    Some(x) => *x = new_ua,
     ///    None => panic!(),
     /// }
     ///
-    /// assert_eq!(t.find(&"User-Agent"), Some(&new_ua));
+    /// assert_eq!(t.get(&"User-Agent"), Some(&new_ua));
     /// ```
     #[inline]
     pub fn find_with_mut<'a>(&'a mut self, f:|&K| -> Ordering) -> Option<&'a mut V> {
@@ -742,10 +744,10 @@ impl<K: Ord, V> TreeMap<K, V> {
     ///     *value = "changed";
     /// }
     ///
-    /// assert_eq!(map.find(&2), Some(&"a"));
-    /// assert_eq!(map.find(&4), Some(&"changed"));
-    /// assert_eq!(map.find(&6), Some(&"changed"));
-    /// assert_eq!(map.find(&8), Some(&"changed"));
+    /// assert_eq!(map.get(&2), Some(&"a"));
+    /// assert_eq!(map.get(&4), Some(&"changed"));
+    /// assert_eq!(map.get(&6), Some(&"changed"));
+    /// assert_eq!(map.get(&8), Some(&"changed"));
     /// ```
     pub fn lower_bound_mut<'a>(&'a mut self, k: &K) -> MutEntries<'a, K, V> {
         bound_setup!(self.iter_mut_for_traversal(), k, true)
@@ -776,10 +778,10 @@ impl<K: Ord, V> TreeMap<K, V> {
     ///     *value = "changed";
     /// }
     ///
-    /// assert_eq!(map.find(&2), Some(&"a"));
-    /// assert_eq!(map.find(&4), Some(&"b"));
-    /// assert_eq!(map.find(&6), Some(&"changed"));
-    /// assert_eq!(map.find(&8), Some(&"changed"));
+    /// assert_eq!(map.get(&2), Some(&"a"));
+    /// assert_eq!(map.get(&4), Some(&"b"));
+    /// assert_eq!(map.get(&6), Some(&"changed"));
+    /// assert_eq!(map.get(&8), Some(&"changed"));
     /// ```
     pub fn upper_bound_mut<'a>(&'a mut self, k: &K) -> MutEntries<'a, K, V> {
         bound_setup!(self.iter_mut_for_traversal(), k, false)
@@ -1287,7 +1289,7 @@ mod test_treemap {
     #[test]
     fn find_empty() {
         let m: TreeMap<int,int> = TreeMap::new();
-        assert!(m.find(&5) == None);
+        assert!(m.get(&5) == None);
     }
 
     #[test]
@@ -1296,13 +1298,13 @@ mod test_treemap {
         assert!(m.insert(1i, 2i));
         assert!(m.insert(5i, 3i));
         assert!(m.insert(9i, 3i));
-        assert_eq!(m.find(&2), None);
+        assert_eq!(m.get(&2), None);
     }
 
     #[test]
     fn find_with_empty() {
         let m: TreeMap<&'static str,int> = TreeMap::new();
-        assert!(m.find_with(|k| "test".cmp(k)) == None);
+        assert!(m.get_with(|k| "test".cmp(k)) == None);
     }
 
     #[test]
@@ -1311,7 +1313,7 @@ mod test_treemap {
         assert!(m.insert("test1", 2i));
         assert!(m.insert("test2", 3i));
         assert!(m.insert("test3", 3i));
-        assert_eq!(m.find_with(|k| "test4".cmp(k)), None);
+        assert_eq!(m.get_with(|k| "test4".cmp(k)), None);
     }
 
     #[test]
@@ -1320,7 +1322,7 @@ mod test_treemap {
         assert!(m.insert("test1", 2i));
         assert!(m.insert("test2", 3i));
         assert!(m.insert("test3", 4i));
-        assert_eq!(m.find_with(|k| "test2".cmp(k)), Some(&3i));
+        assert_eq!(m.get_with(|k| "test2".cmp(k)), Some(&3i));
     }
 
     #[test]
@@ -1330,10 +1332,10 @@ mod test_treemap {
         assert!(m.insert(2, 8));
         assert!(m.insert(5, 14));
         let new = 100;
-        match m.find_mut(&5) {
+        match m.get_mut(&5) {
           None => panic!(), Some(x) => *x = new
         }
-        assert_eq!(m.find(&5), Some(&new));
+        assert_eq!(m.get(&5), Some(&new));
     }
 
     #[test]
@@ -1343,10 +1345,10 @@ mod test_treemap {
         assert!(m.insert("t2", 8));
         assert!(m.insert("t5", 14));
         let new = 100;
-        match m.find_with_mut(|k| "t5".cmp(k)) {
+        match m.get_with_mut(|k| "t5".cmp(k)) {
           None => panic!(), Some(x) => *x = new
         }
-        assert_eq!(m.find_with(|k| "t5".cmp(k)), Some(&new));
+        assert_eq!(m.get_with(|k| "t5".cmp(k)), Some(&new));
     }
 
     #[test]
@@ -1355,7 +1357,7 @@ mod test_treemap {
         assert!(m.insert(5i, 2i));
         assert!(m.insert(2, 9));
         assert!(!m.insert(2, 11));
-        assert_eq!(m.find(&2).unwrap(), &11);
+        assert_eq!(m.get(&2).unwrap(), &11);
     }
 
     #[test]
@@ -1366,9 +1368,9 @@ mod test_treemap {
         assert!(m.insert(12, -3));
         assert!(m.insert(19, 2));
         m.clear();
-        assert!(m.find(&5).is_none());
-        assert!(m.find(&12).is_none());
-        assert!(m.find(&19).is_none());
+        assert!(m.get(&5).is_none());
+        assert!(m.get(&12).is_none());
+        assert!(m.get(&19).is_none());
         assert!(m.is_empty());
     }
 
@@ -1384,8 +1386,8 @@ mod test_treemap {
         m.insert(k1.clone(), v1.clone());
         m.insert(k2.clone(), v2.clone());
 
-        assert_eq!(m.find(&k2), Some(&v2));
-        assert_eq!(m.find(&k1), Some(&v1));
+        assert_eq!(m.get(&k2), Some(&v2));
+        assert_eq!(m.get(&k1), Some(&v1));
     }
 
     fn check_equal<K: PartialEq + Ord, V: PartialEq>(ctrl: &[(K, V)],
@@ -1393,7 +1395,7 @@ mod test_treemap {
         assert_eq!(ctrl.is_empty(), map.is_empty());
         for x in ctrl.iter() {
             let &(ref k, ref v) = x;
-            assert!(map.find(k).unwrap() == v)
+            assert!(map.get(k).unwrap() == v)
         }
         for (map_k, map_v) in map.iter() {
             let mut found = false;
@@ -1455,7 +1457,7 @@ mod test_treemap {
         let mut ctrl = vec![];
 
         check_equal(ctrl.as_slice(), &map);
-        assert!(map.find(&5).is_none());
+        assert!(map.get(&5).is_none());
 
         let seed: &[_] = &[42];
         let mut rng: rand::IsaacRng = rand::SeedableRng::from_seed(seed);
@@ -1765,7 +1767,7 @@ mod test_treemap {
         let map: TreeMap<int, int> = xs.iter().map(|&x| x).collect();
 
         for &(k, v) in xs.iter() {
-            assert_eq!(map.find(&k), Some(&v));
+            assert_eq!(map.get(&k), Some(&v));
         }
     }
 
@@ -1795,17 +1797,17 @@ mod test_treemap {
     #[test]
     fn test_swap() {
         let mut m = TreeMap::new();
-        assert_eq!(m.swap(1u, 2i), None);
-        assert_eq!(m.swap(1u, 3i), Some(2));
-        assert_eq!(m.swap(1u, 4i), Some(3));
+        assert_eq!(m.insert(1u, 2i), None);
+        assert_eq!(m.insert(1u, 3i), Some(2));
+        assert_eq!(m.insert(1u, 4i), Some(3));
     }
 
     #[test]
     fn test_pop() {
         let mut m = TreeMap::new();
         m.insert(1u, 2i);
-        assert_eq!(m.pop(&1), Some(2));
-        assert_eq!(m.pop(&1), None);
+        assert_eq!(m.remove(&1), Some(2));
+        assert_eq!(m.remove(&1), None);
     }
 }
 
@@ -1857,7 +1859,7 @@ mod bench {
         let mut m : TreeMap<uint,uint> = TreeMap::new();
         find_rand_n(100, &mut m, b,
                     |m, i| { m.insert(i, 1); },
-                    |m, i| { m.find(&i); });
+                    |m, i| { m.get(&i); });
     }
 
     #[bench]
@@ -1865,7 +1867,7 @@ mod bench {
         let mut m : TreeMap<uint,uint> = TreeMap::new();
         find_rand_n(10_000, &mut m, b,
                     |m, i| { m.insert(i, 1); },
-                    |m, i| { m.find(&i); });
+                    |m, i| { m.get(&i); });
     }
 
     // Find seq
@@ -1874,7 +1876,7 @@ mod bench {
         let mut m : TreeMap<uint,uint> = TreeMap::new();
         find_seq_n(100, &mut m, b,
                    |m, i| { m.insert(i, 1); },
-                   |m, i| { m.find(&i); });
+                   |m, i| { m.get(&i); });
     }
 
     #[bench]
@@ -1882,7 +1884,7 @@ mod bench {
         let mut m : TreeMap<uint,uint> = TreeMap::new();
         find_seq_n(10_000, &mut m, b,
                    |m, i| { m.insert(i, 1); },
-                   |m, i| { m.find(&i); });
+                   |m, i| { m.get(&i); });
     }
 
     fn bench_iter(b: &mut Bencher, size: uint) {
@@ -1890,7 +1892,7 @@ mod bench {
         let mut rng = weak_rng();
 
         for _ in range(0, size) {
-            map.swap(rng.gen(), rng.gen());
+            map.insert(rng.gen(), rng.gen());
         }
 
         b.iter(|| {
