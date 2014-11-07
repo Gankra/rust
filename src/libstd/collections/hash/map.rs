@@ -1221,6 +1221,8 @@ fn search_entry_hashed<'a, K: Eq, V>(table: &'a mut RawTable<K,V>, hash: SafeHas
 }
 
 impl<K: Eq + Hash<S>, V: Clone, S, H: Hasher<S>> HashMap<K, V, H> {
+    /// Deprecated: Use `map.get(k).cloned()`.
+    ///
     /// Return a copy of the value corresponding to the key.
     ///
     /// # Example
@@ -1232,10 +1234,13 @@ impl<K: Eq + Hash<S>, V: Clone, S, H: Hasher<S>> HashMap<K, V, H> {
     /// map.insert(1u, "foo".to_string());
     /// let s: String = map.find_copy(&1).unwrap();
     /// ```
+    #[deprecated = "Use `map.get(k).cloned()`"]
     pub fn find_copy(&self, k: &K) -> Option<V> {
-        self.get(k).map(|v| (*v).clone())
+        self.get(k).cloned()
     }
 
+    /// Deprecated: Use `map[k].clone()`.
+    ///
     /// Return a copy of the value corresponding to the key.
     ///
     /// # Failure
@@ -1251,6 +1256,7 @@ impl<K: Eq + Hash<S>, V: Clone, S, H: Hasher<S>> HashMap<K, V, H> {
     /// map.insert(1u, "foo".to_string());
     /// let s: String = map.get_copy(&1);
     /// ```
+    #[deprecated = "Use `map[k].clone()`"]
     pub fn get_copy(&self, k: &K) -> V {
         self[*k].clone()
     }
