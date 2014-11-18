@@ -256,7 +256,7 @@ fn test_cloned() {
     assert_eq!(opt_none.cloned(), None);
 
     // Mutable refs work
-    assert_eq!(opt_mut_ref.cloned(), Some(val2));
+    assert_eq!(opt_mut_ref.cloned(), Some(2u32));
 
     // Immutable ref works
     assert_eq!(opt_ref.clone(), Some(&val1));
