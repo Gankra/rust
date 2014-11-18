@@ -260,10 +260,10 @@ fn test_cloned() {
 
     // Immutable ref works
     assert_eq!(opt_ref.clone(), Some(&val1));
-    assert_eq!(opt_ref.cloned(), Some(val2));
+    assert_eq!(opt_ref.cloned(), Some(1u32));
 
     // Double Immutable ref works
     assert_eq!(opt_ref_ref.clone(), Some(&val1_ref));
     assert_eq!(opt_ref_ref.clone().cloned(), Some(&val1));
-    assert_eq!(opt_ref_ref.cloned().cloned(), Some(val1));
+    assert_eq!(opt_ref_ref.cloned().cloned(), Some(1u32));
 }
