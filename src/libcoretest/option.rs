@@ -256,8 +256,6 @@ fn test_cloned() {
 
     // Mutable refs work
     assert_eq!(opt_mut_ref.cloned(), Some(val2));
-    // Make sure borrowck isn't confused
-    assert_eq!(opt_mut_ref.cloned(), Some(val2));
 
     // Immutable ref works
     assert_eq!(opt_ref.clone(), Some(&val1));
@@ -265,6 +263,6 @@ fn test_cloned() {
 
     // Double Immutable ref works
     assert_eq!(opt_ref_ref.clone(), Some(&&val1));
-    assert_eq!(opt_ref_ref.cloned(), Some(&val1));
+    assert_eq!(opt_ref_ref.clone().cloned(), Some(&val1));
     assert_eq!(opt_ref_ref.cloned().cloned(), Some(val1));
 }
