@@ -245,9 +245,10 @@ fn test_collect() {
 fn test_cloned() {
     let val1 = 1u32;
     let val2 = 2u32;
+    let val1_ref = &val1;
     let opt_none: Option<&'static u32> = None;
     let opt_ref = Some(&val1);
-    let opt_ref_ref = Some(&&val1);
+    let opt_ref_ref = Some(&val1_ref);
     let opt_mut_ref = Some(&mut val2);
 
     // None works
