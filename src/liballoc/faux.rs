@@ -93,7 +93,7 @@ pub unsafe fn realloc_array_inplace<T>(ptr: *mut T, old_len: uint, len: uint) ->
         let desired_size = size.checked_mul(len).expect("capacity overflow");
         // No need to check old_size * len, must have been checked when the ptr was made, or
         // else UB anyway.
-        let result_size = reallocate_inplace(ptr as *mut u8, size * old_len, desired_size, align)
+        let result_size = reallocate_inplace(ptr as *mut u8, size * old_len, desired_size, align);
         if result_size == usable_size(desired_size, align) {
             Ok(())
         } else {
