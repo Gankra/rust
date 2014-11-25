@@ -1,6 +1,8 @@
 use heap::{usable_size, allocate, EMPTY};
-use mem::{size_of, min_align_of, };
+use mem::{size_of, min_align_of};
 use ptr::{null_mut}
+use core::num::Int;
+use heap;
 
 /// Allocates and returns a ptr to memory to store a single element of type T. Handles zero-sized
 /// types automatically by returning the non-null EMPTY ptr.
@@ -14,7 +16,7 @@ pub unsafe fn alloc<T>() -> *mut T {
     if size == 0 {
         EMPTY as *mut T
     } else {
-        let ptr = heap::allocate(size, min_align_of::<T>());
+        let ptr = heap::allocate(size, min_align_of::<T>()) as *mut T;
         if ptr == null_mut() { ::oom(); }
         ptr
     }
@@ -25,7 +27,7 @@ pub unsafe fn alloc<T>() -> *mut T {
 ///
 /// # Panics
 ///
-/// Panics if the given `len` is 0.
+/// Panics if the given `len` is 0, or is size_of<T> * len overflows.
 ///
 /// # Aborts
 ///
@@ -37,7 +39,8 @@ pub unsafe fn alloc_array<T>(len: uint) -> *mut T {
     if size == 0 {
         EMPTY as *mut T
     } else {
-        let ptr = heap::allocate(size * len, min_align_of::<T>());
+        let desired_size = size.checked_mul(len).expect("capacity overflow");
+        let ptr = heap::allocate(desired_size, min_align_of::<T>()) as *mut T;
         if ptr == null_mut() { ::oom(); }
         ptr
     }
@@ -49,7 +52,7 @@ pub unsafe fn alloc_array<T>(len: uint) -> *mut T {
 ///
 /// # Panics
 ///
-/// Panics if given `len` is 0.
+/// Panics if given `len` is 0, or is size_of<T> * len overflows.
 ///
 /// # Aborts
 ///
@@ -61,7 +64,11 @@ pub unsafe fn realloc_array<T>(ptr: *mut T, old_len: uint, len: uint) -> *mut T 
     if size == 0 {
         ptr
     } else {
-        let ptr = reallocate(ptr as *mut u8, size * old_len, size * len, min_align_of::<T>());
+        let desired_size = size.checked_mul(len).expect("capacity overflow");
+        let align = min_align_of::<T>();
+        // No need to check old_size * len, must have been checked when the ptr was made, or
+        // else UB anyway.
+        let ptr = reallocate(ptr as *mut u8, old_size * len, desired_size, align) as *mut T;
         if ptr == null_mut() { ::oom(); }
         ptr
     }
@@ -74,7 +81,7 @@ pub unsafe fn realloc_array<T>(ptr: *mut T, old_len: uint, len: uint) -> *mut T 
 ///
 /// # Panics
 ///
-/// Panics if given `len` is 0.
+/// Panics if given `len` is 0, or is size_of<T> * len overflows.
 #[inline]
 pub unsafe fn realloc_array_inplace<T>(ptr: *mut T, old_len: uint, len: uint) -> Result<(), ()> {
     assert!(len != 0, "Cannot allocate an array of length 0");
@@ -83,7 +90,9 @@ pub unsafe fn realloc_array_inplace<T>(ptr: *mut T, old_len: uint, len: uint) ->
     if size == 0 {
         Ok(())
     } else {
-        let desired_size = size * len;
+        let desired_size = size.checked_mul(len).expect("capacity overflow");
+        // No need to check old_size * len, must have been checked when the ptr was made, or
+        // else UB anyway.
         let result_size = reallocate_inplace(ptr as *mut u8, size * old_len, desired_size, align)
         if result_size == usable_size(desired_size, align) {
             Ok(())
@@ -103,7 +112,7 @@ pub unsafe fn dealloc<T>(ptr: *mut T) {
     if size == 0 {
         // Do nothing
     } else {
-        deallocate(ptr, size, min_align_of::<T>());
+        deallocate(ptr as *mut u8, size, min_align_of::<T>());
     }
 }
 
@@ -118,6 +127,8 @@ pub unsafe fn dealloc_array<T>(ptr: *mut T, len: uint) {
     if size == 0 {
         // Do nothing
     } else {
-        deallocate(ptr, size * len, min_align_of::<T>());
+        // No need to check size * len, must have been checked when the ptr was made, or
+        // else UB anyway.
+        deallocate(ptr as *mut u8, size * len, min_align_of::<T>());
     }
 }
