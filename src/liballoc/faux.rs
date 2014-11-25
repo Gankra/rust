@@ -2,6 +2,8 @@ use heap::{mod, usable_size, EMPTY};
 use core::mem::{size_of, min_align_of};
 use core::ptr::null_mut;
 use core::num::Int;
+use core::result::Result;
+use core::result::Result::{Ok, Err};
 
 /// Allocates and returns a ptr to memory to store a single element of type T. Handles zero-sized
 /// types automatically by returning the non-null EMPTY ptr.
@@ -67,7 +69,7 @@ pub unsafe fn realloc_array<T>(ptr: *mut T, old_len: uint, len: uint) -> *mut T 
         let align = min_align_of::<T>();
         // No need to check old_size * len, must have been checked when the ptr was made, or
         // else UB anyway.
-        let ptr = reallocate(ptr as *mut u8, size * old_len, desired_size, align) as *mut T;
+        let ptr = heap::reallocate(ptr as *mut u8, size * old_len, desired_size, align) as *mut T;
         if ptr == null_mut() { ::oom(); }
         ptr
     }
@@ -92,7 +94,8 @@ pub unsafe fn realloc_array_inplace<T>(ptr: *mut T, old_len: uint, len: uint) ->
         let desired_size = size.checked_mul(len).expect("capacity overflow");
         // No need to check old_size * len, must have been checked when the ptr was made, or
         // else UB anyway.
-        let result_size = reallocate_inplace(ptr as *mut u8, size * old_len, desired_size, align);
+        let result_size = heap::reallocate_inplace(ptr as *mut u8, size * old_len,
+                                                    desired_size, align);
         if result_size == usable_size(desired_size, align) {
             Ok(())
         } else {
@@ -107,7 +110,7 @@ pub unsafe fn realloc_array_inplace<T>(ptr: *mut T, old_len: uint, len: uint) ->
 /// The `ptr` parameter must not be null, or previously deallocated.
 #[inline]
 pub unsafe fn dealloc<T>(ptr: *mut T) {
-    let size = mem::size_of<T>();
+    let size = size_of::<T>();
     if size == 0 {
         // Do nothing
     } else {
@@ -122,7 +125,7 @@ pub unsafe fn dealloc<T>(ptr: *mut T) {
 /// value of `len` given to the function that allocated the `ptr`.
 #[inline]
 pub unsafe fn dealloc_array<T>(ptr: *mut T, len: uint) {
-    let size = mem::size_of<T>();
+    let size = size_of::<T>();
     if size == 0 {
         // Do nothing
     } else {
