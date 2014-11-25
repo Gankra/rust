@@ -1433,7 +1433,7 @@ mod test_map {
     use hash;
     use iter::{Iterator,range_inclusive,range_step_inclusive};
     use cell::RefCell;
-    use ::rand::Rng;
+    use rand::Rng;
 
     struct KindaIntLike(int);
 
