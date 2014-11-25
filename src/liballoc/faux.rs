@@ -67,7 +67,7 @@ pub unsafe fn realloc_array<T>(ptr: *mut T, old_len: uint, len: uint) -> *mut T 
         let align = min_align_of::<T>();
         // No need to check old_size * len, must have been checked when the ptr was made, or
         // else UB anyway.
-        let ptr = reallocate(ptr as *mut u8, old_size * len, desired_size, align) as *mut T;
+        let ptr = reallocate(ptr as *mut u8, size * old_len, desired_size, align) as *mut T;
         if ptr == null_mut() { ::oom(); }
         ptr
     }
