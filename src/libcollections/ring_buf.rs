@@ -112,9 +112,7 @@ impl<T> RingBuf<T> {
     pub fn with_capacity(n: uint) -> RingBuf<T> {
         // +1 since the ringbuffer always leaves one space empty
         let cap = cmp::max(n + 1, MINIMUM_CAPACITY).next_power_of_two();
-        unsafe {
-            ptr = faux::alloc_array(cap);
-        }
+        let ptr = unsafe { faux::alloc_array(cap) };
 
         RingBuf {
             tail: 0,
