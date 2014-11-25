@@ -1376,7 +1376,7 @@ impl<'a, K, V> OccupiedEntry<'a, K, V> {
 
     /// Takes the value out of the entry, and returns it
     pub fn take(self) -> V {
-        let (_, v) = pop_internal(self.elem.take());
+        let (_, v) = pop_internal(self.elem);
         v
     }
 }
