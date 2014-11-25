@@ -1,6 +1,6 @@
 use heap::{usable_size, allocate, EMPTY};
 use mem::{size_of, min_align_of};
-use ptr::{null_mut}
+use ptr::{null_mut};
 use core::num::Int;
 use heap;
 
