@@ -2075,7 +2075,7 @@ mod test_map {
         }
 
         let mut m = HashMap::new();
-        let mut rng = std::rand::weak_rng();
+        let mut rng = rand::weak_rng();
 
         // Populate the map with some items.
         for _ in range(0u, 50) {
