@@ -1,8 +1,7 @@
-use heap::{usable_size, allocate, EMPTY};
-use mem::{size_of, min_align_of};
-use ptr::{null_mut};
+use heap::{mod, usable_size, EMPTY};
+use core::mem::{size_of, min_align_of};
+use core::ptr::null_mut;
 use core::num::Int;
-use heap;
 
 /// Allocates and returns a ptr to memory to store a single element of type T. Handles zero-sized
 /// types automatically by returning the non-null EMPTY ptr.
