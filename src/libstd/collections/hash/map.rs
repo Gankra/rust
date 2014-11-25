@@ -1433,7 +1433,7 @@ mod test_map {
     use hash;
     use iter::{Iterator,range_inclusive,range_step_inclusive};
     use cell::RefCell;
-    use rand::Rng;
+    use rand::{weak_rng, Rng};
 
     struct KindaIntLike(int);
 
@@ -2075,7 +2075,7 @@ mod test_map {
         }
 
         let mut m = HashMap::new();
-        let mut rng = rand::weak_rng();
+        let mut rng = weak_rng();
 
         // Populate the map with some items.
         for _ in range(0u, 50) {
