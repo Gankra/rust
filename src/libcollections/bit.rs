@@ -90,6 +90,7 @@ use core::iter;
 use core::num::Int;
 use core::slice;
 use core::{u8, u32, uint};
+use bitv_set; //so meta
 
 use core::hash;
 use Vec;
