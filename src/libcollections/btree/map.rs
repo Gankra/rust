@@ -1167,7 +1167,7 @@ impl<K, V> BTreeMap<K, V> {
     /// assert_eq!((*first_key, *first_value), (1u, "a"));
     /// ```
     #[stable]
-    pub fn iter<'a>(&'a self) -> Iter<'a, K, V> {
+    pub fn iter(&self) -> Iter<K, V> {
         let len = self.len();
         Iter {
             inner: AbsIter {
@@ -1199,7 +1199,7 @@ impl<K, V> BTreeMap<K, V> {
     /// }
     /// ```
     #[stable]
-    pub fn iter_mut<'a>(&'a mut self) -> IterMut<'a, K, V> {
+    pub fn iter_mut(&mut self) -> IterMut<K, V> {
         let len = self.len();
         IterMut {
             inner: AbsIter {

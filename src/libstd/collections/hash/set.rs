@@ -252,7 +252,7 @@ impl<T: Eq + Hash<S>, S, H: Hasher<S>> HashSet<T, H> {
     /// }
     /// ```
     #[stable]
-    pub fn iter<'a>(&'a self) -> Iter<'a, T> {
+    pub fn iter(&self) -> Iter<T> {
         Iter { iter: self.map.keys() }
     }
 

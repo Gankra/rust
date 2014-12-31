@@ -484,6 +484,7 @@ impl<V> VecMap<V> {
 impl<V:Clone> VecMap<V> {
     /// Deprecated: Use the entry API when available; shouldn't matter anyway, access is cheap.
     #[deprecated = "Use the entry API when available; shouldn't matter anyway, access is cheap"]
+    #[allow(deprecated)]
     pub fn update<F>(&mut self, key: uint, newval: V, ff: F) -> bool where F: FnOnce(V, V) -> V {
         self.update_with_key(key, newval, move |_k, v, v1| ff(v,v1))
     }

@@ -115,7 +115,7 @@ impl<T> BTreeSet<T> {
     /// assert_eq!(v, vec![1u,2,3,4]);
     /// ```
     #[stable]
-    pub fn iter<'a>(&'a self) -> Iter<'a, T> {
+    pub fn iter(&self) -> Iter<T> {
         Iter { iter: self.map.keys() }
     }
 

@@ -55,20 +55,12 @@ struct Node<T> {
 
 /// An iterator over references to the items of a `DList`.
 #[stable]
+#[deriving(Clone)]
 pub struct Iter<'a, T:'a> {
     head: &'a Link<T>,
     tail: Rawlink<Node<T>>,
     nelem: uint,
 }
-
-// FIXME #11820: the &'a Option<> of the Link stops clone working.
-#[stable]
-impl<'a, T> Clone for Iter<'a, T> {
-    fn clone(&self) -> Iter<'a, T> { *self }
-}
-
-#[unstable = "copyable iterators are dubious"]
-impl<'a,T> Copy for Iter<'a,T> {}
 
 /// An iterator over mutable references to the items of a `DList`.
 #[stable]
@@ -319,14 +311,14 @@ impl<T> DList<T> {
     /// Provides a forward iterator.
     #[inline]
     #[stable]
-    pub fn iter<'a>(&'a self) -> Iter<'a, T> {
+    pub fn iter(&self) -> Iter<T> {
         Iter{nelem: self.len(), head: &self.list_head, tail: self.list_tail}
     }
 
     /// Provides a forward iterator with mutable references.
     #[inline]
     #[stable]
-    pub fn iter_mut<'a>(&'a mut self) -> IterMut<'a, T> {
+    pub fn iter_mut(&mut self) -> IterMut<T> {
         let head_raw = match self.list_head {
             Some(ref mut h) => Rawlink::some(&mut **h),
             None => Rawlink::none(),
@@ -474,6 +466,7 @@ impl<T> DList<T> {
 impl<T: Ord> DList<T> {
     /// Deprecated: Why are you maintaining a sorted DList?
     #[deprecated = "Why are you maintaining a sorted DList?"]
+    #[allow(deprecated)]
     pub fn insert_ordered(&mut self, elt: T) {
         self.insert_when(elt, |a, b| a >= b)
     }

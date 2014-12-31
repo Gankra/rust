@@ -88,14 +88,14 @@ use core::fmt;
 use core::iter::{Cloned, Chain, Enumerate, Repeat, Skip, Take};
 use core::iter;
 use core::num::Int;
-use core::slice::{Iter, IterMut};
+use core::slice;
 use core::{u8, u32, uint};
 
 use core::hash;
 use Vec;
 
-type Blocks<'a> = Cloned<Iter<'a, u32>>;
-type MutBlocks<'a> = IterMut<'a, u32>;
+type Blocks<'a> = Cloned<slice::Iter<'a, u32>>;
+type MutBlocks<'a> = slice::IterMut<'a, u32>;
 type MatchWords<'a> = Chain<Enumerate<Blocks<'a>>, Skip<Take<Enumerate<Repeat<u32>>>>>;
 
 fn reverse_bits(byte: u8) -> u8 {
@@ -163,7 +163,7 @@ pub struct Bitv {
 // FIXME(Gankro): NopeNopeNopeNopeNope (wait for IndexGet to be a thing)
 impl Index<uint,bool> for Bitv {
     #[inline]
-    fn index<'a>(&'a self, i: &uint) -> &'a bool {
+    fn index(&self, i: &uint) -> &bool {
         if self.get(*i).expect("index out of bounds") {
             &TRUE
         } else {
@@ -580,8 +580,8 @@ impl Bitv {
     /// ```
     #[inline]
     #[stable]
-    pub fn iter<'a>(&'a self) -> Bits<'a> {
-        Bits { bitv: self, next_idx: 0, end_idx: self.nbits }
+    pub fn iter(&self) -> Iter {
+        Iter { bitv: self, next_idx: 0, end_idx: self.nbits }
     }
 
     /// Returns `true` if all bits are 0.
@@ -1018,15 +1018,15 @@ impl cmp::PartialEq for Bitv {
 impl cmp::Eq for Bitv {}
 
 /// An iterator for `Bitv`.
-#[unstable = "needs to be newtyped"]
-pub struct Bits<'a> {
+#[stable]
+pub struct Iter<'a> {
     bitv: &'a Bitv,
     next_idx: uint,
     end_idx: uint,
 }
 
 #[stable]
-impl<'a> Iterator<bool> for Bits<'a> {
+impl<'a> Iterator<bool> for Iter<'a> {
     #[inline]
     fn next(&mut self) -> Option<bool> {
         if self.next_idx != self.end_idx {
@@ -1045,7 +1045,7 @@ impl<'a> Iterator<bool> for Bits<'a> {
 }
 
 #[stable]
-impl<'a> DoubleEndedIterator<bool> for Bits<'a> {
+impl<'a> DoubleEndedIterator<bool> for Iter<'a> {
     #[inline]
     fn next_back(&mut self) -> Option<bool> {
         if self.next_idx != self.end_idx {
@@ -1058,10 +1058,10 @@ impl<'a> DoubleEndedIterator<bool> for Bits<'a> {
 }
 
 #[stable]
-impl<'a> ExactSizeIterator<bool> for Bits<'a> {}
+impl<'a> ExactSizeIterator<bool> for Iter<'a> {}
 
 #[stable]
-impl<'a> RandomAccessIterator<bool> for Bits<'a> {
+impl<'a> RandomAccessIterator<bool> for Iter<'a> {
     #[inline]
     fn indexable(&self) -> uint {
         self.end_idx - self.next_idx
@@ -1332,7 +1332,7 @@ impl BitvSet {
     /// assert_eq!(bv[0], true);
     /// ```
     #[inline]
-    pub fn get_ref<'a>(&'a self) -> &'a Bitv {
+    pub fn get_ref(&self) -> &Bitv {
         &self.bitv
     }
 
@@ -1412,8 +1412,8 @@ impl BitvSet {
     /// ```
     #[inline]
     #[stable]
-    pub fn iter<'a>(&'a self) -> BitPositions<'a> {
-        BitPositions {set: self, next_idx: 0u}
+    pub fn iter(&self) -> SetIter {
+        SetIter {set: self, next_idx: 0u}
     }
 
     /// Iterator over each u32 stored in `self` union `other`.
@@ -1434,16 +1434,16 @@ impl BitvSet {
     /// ```
     #[inline]
     #[stable]
-    pub fn union<'a>(&'a self, other: &'a BitvSet) -> TwoBitPositions<'a> {
+    pub fn union<'a>(&'a self, other: &'a BitvSet) -> Union<'a> {
         fn or(w1: u32, w2: u32) -> u32 { w1 | w2 }
 
-        TwoBitPositions {
+        Union(TwoBitPositions {
             set: self,
             other: other,
             merge: or,
             current_word: 0u32,
             next_idx: 0u
-        }
+        })
     }
 
     /// Iterator over each uint stored in `self` intersect `other`.
@@ -1464,16 +1464,16 @@ impl BitvSet {
     /// ```
     #[inline]
     #[stable]
-    pub fn intersection<'a>(&'a self, other: &'a BitvSet) -> Take<TwoBitPositions<'a>> {
+    pub fn intersection<'a>(&'a self, other: &'a BitvSet) -> Intersection<'a> {
         fn bitand(w1: u32, w2: u32) -> u32 { w1 & w2 }
         let min = cmp::min(self.bitv.len(), other.bitv.len());
-        TwoBitPositions {
+        Intersection(TwoBitPositions {
             set: self,
             other: other,
             merge: bitand,
             current_word: 0u32,
             next_idx: 0
-        }.take(min)
+        }.take(min))
     }
 
     /// Iterator over each uint stored in the `self` setminus `other`.
@@ -1501,16 +1501,16 @@ impl BitvSet {
     /// ```
     #[inline]
     #[stable]
-    pub fn difference<'a>(&'a self, other: &'a BitvSet) -> TwoBitPositions<'a> {
+    pub fn difference<'a>(&'a self, other: &'a BitvSet) -> Difference<'a> {
         fn diff(w1: u32, w2: u32) -> u32 { w1 & !w2 }
 
-        TwoBitPositions {
+        Difference(TwoBitPositions {
             set: self,
             other: other,
             merge: diff,
             current_word: 0u32,
             next_idx: 0
-        }
+        })
     }
 
     /// Iterator over each u32 stored in the symmetric difference of `self` and `other`.
@@ -1532,16 +1532,16 @@ impl BitvSet {
     /// ```
     #[inline]
     #[stable]
-    pub fn symmetric_difference<'a>(&'a self, other: &'a BitvSet) -> TwoBitPositions<'a> {
+    pub fn symmetric_difference<'a>(&'a self, other: &'a BitvSet) -> SymmetricDifference<'a> {
         fn bitxor(w1: u32, w2: u32) -> u32 { w1 ^ w2 }
 
-        TwoBitPositions {
+        SymmetricDifference(TwoBitPositions {
             set: self,
             other: other,
             merge: bitxor,
             current_word: 0u32,
             next_idx: 0
-        }
+        })
     }
 
     /// Unions in-place with the specified other bit vector.
@@ -1760,15 +1760,14 @@ impl<S: hash::Writer> hash::Hash<S> for BitvSet {
 }
 
 /// An iterator for `BitvSet`.
-#[unstable = "needs to be newtyped"]
-pub struct BitPositions<'a> {
+#[stable]
+pub struct SetIter<'a> {
     set: &'a BitvSet,
     next_idx: uint
 }
 
 /// An iterator combining two `BitvSet` iterators.
-#[unstable = "needs to be newtyped"]
-pub struct TwoBitPositions<'a> {
+struct TwoBitPositions<'a> {
     set: &'a BitvSet,
     other: &'a BitvSet,
     merge: fn(u32, u32) -> u32,
@@ -1777,7 +1776,16 @@ pub struct TwoBitPositions<'a> {
 }
 
 #[stable]
-impl<'a> Iterator<uint> for BitPositions<'a> {
+pub struct Union<'a>(TwoBitPositions<'a>);
+#[stable]
+pub struct Intersection<'a>(Take<TwoBitPositions<'a>>);
+#[stable]
+pub struct Difference<'a>(TwoBitPositions<'a>);
+#[stable]
+pub struct SymmetricDifference<'a>(TwoBitPositions<'a>);
+
+#[stable]
+impl<'a> Iterator<uint> for SetIter<'a> {
     fn next(&mut self) -> Option<uint> {
         while self.next_idx < self.set.bitv.len() {
             let idx = self.next_idx;
@@ -1833,8 +1841,29 @@ impl<'a> Iterator<uint> for TwoBitPositions<'a> {
     }
 }
 
+#[stable]
+impl<'a> Iterator<uint> for Union<'a> {
+    #[inline] fn next(&mut self) -> Option<uint> { self.0.next() }
+    #[inline] fn size_hint(&self) -> (uint, Option<uint>) { self.0.size_hint() }
+}
 
+#[stable]
+impl<'a> Iterator<uint> for Intersection<'a> {
+    #[inline] fn next(&mut self) -> Option<uint> { self.0.next() }
+    #[inline] fn size_hint(&self) -> (uint, Option<uint>) { self.0.size_hint() }
+}
 
+#[stable]
+impl<'a> Iterator<uint> for Difference<'a> {
+    #[inline] fn next(&mut self) -> Option<uint> { self.0.next() }
+    #[inline] fn size_hint(&self) -> (uint, Option<uint>) { self.0.size_hint() }
+}
+
+#[stable]
+impl<'a> Iterator<uint> for SymmetricDifference<'a> {
+    #[inline] fn next(&mut self) -> Option<uint> { self.0.next() }
+    #[inline] fn size_hint(&self) -> (uint, Option<uint>) { self.0.size_hint() }
+}
 
 
 #[cfg(test)]

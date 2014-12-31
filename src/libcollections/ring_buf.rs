@@ -80,13 +80,13 @@ impl<T> Default for RingBuf<T> {
 impl<T> RingBuf<T> {
     /// Turn ptr into a slice
     #[inline]
-    unsafe fn buffer_as_slice<'a>(&'a self) -> &'a [T] {
+    unsafe fn buffer_as_slice(&self) -> &[T] {
         mem::transmute(RawSlice { data: self.ptr as *const T, len: self.cap })
     }
 
     /// Turn ptr into a mut slice
     #[inline]
-    unsafe fn buffer_as_mut_slice<'a>(&'a mut self) -> &'a mut [T] {
+    unsafe fn buffer_as_mut_slice(&mut self) -> &mut [T] {
         mem::transmute(RawSlice { data: self.ptr as *const T, len: self.cap })
     }
 
@@ -509,7 +509,7 @@ impl<T> RingBuf<T> {
     /// ```
     #[inline]
     #[unstable = "matches collection reform specification, waiting for dust to settle"]
-    pub fn drain<'a>(&'a mut self) -> Drain<'a, T> {
+    pub fn drain(&mut self) -> Drain<T> {
         Drain {
             inner: self,
         }
