@@ -55,7 +55,6 @@ struct Node<T> {
 
 /// An iterator over references to the items of a `DList`.
 #[stable]
-#[deriving(Clone)]
 pub struct Iter<'a, T:'a> {
     head: &'a Link<T>,
     tail: Rawlink<Node<T>>,
