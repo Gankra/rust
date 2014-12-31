@@ -1412,7 +1412,7 @@ impl BitvSet {
     /// ```
     #[inline]
     #[stable]
-    pub fn iter(&self) -> SetIter {
+    pub fn iter(&self) -> bitv_set::Iter {
         SetIter {set: self, next_idx: 0u}
     }
 

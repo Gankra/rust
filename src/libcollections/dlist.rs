@@ -62,6 +62,18 @@ pub struct Iter<'a, T:'a> {
     nelem: uint,
 }
 
+// FIXME #19839: deriving is too aggressive on the bounds (T doesn't need to be Clone).
+#[stable]
+impl<'a, T> Clone for Iter<'a, T> {
+    fn clone(&self) -> Iter<'a, T> {
+        Iter {
+            head: self.head.clone(),
+            tail: self.tail,
+            nelem: self.nelem,
+        }
+    }
+}
+
 /// An iterator over mutable references to the items of a `DList`.
 #[stable]
 pub struct IterMut<'a, T:'a> {
