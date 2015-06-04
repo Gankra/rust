@@ -67,7 +67,7 @@ use core::cmp::Ordering;
 use core::fmt;
 use core::hash::{self, Hash};
 use core::intrinsics::{arith_offset, assume};
-use core::iter::{repeat, FromIterator};
+use core::iter::{repeat, FromIterator, TrustedLen};
 use core::marker::PhantomData;
 use core::mem;
 use core::ops::{Index, IndexMut, Deref};
@@ -1469,43 +1469,9 @@ impl<T> ops::DerefMut for Vec<T> {
 impl<T> FromIterator<T> for Vec<T> {
     #[inline]
     fn from_iter<I: IntoIterator<Item=T>>(iterable: I) -> Vec<T> {
-        let mut iterator = iterable.into_iter();
-        let (lower, _) = iterator.size_hint();
-        let mut vector = Vec::with_capacity(lower);
-
-        // This function should be the moral equivalent of:
-        //
-        //      for item in iterator {
-        //          vector.push(item);
-        //      }
-        //
-        // This equivalent crucially runs the iterator precisely once. Below we
-        // actually in theory run the iterator twice (one without bounds checks
-        // and one with). To achieve the "moral equivalent", we use the `if`
-        // statement below to break out early.
-        //
-        // If the first loop has terminated, then we have one of two conditions.
-        //
-        // 1. The underlying iterator returned `None`. In this case we are
-        //    guaranteed that less than `vector.capacity()` elements have been
-        //    returned, so we break out early.
-        // 2. The underlying iterator yielded `vector.capacity()` elements and
-        //    has not yielded `None` yet. In this case we run the iterator to
-        //    its end below.
-        for element in iterator.by_ref().take(vector.capacity()) {
-            let len = vector.len();
-            unsafe {
-                ptr::write(vector.get_unchecked_mut(len), element);
-                vector.set_len(len + 1);
-            }
-        }
-
-        if vector.len() == vector.capacity() {
-            for element in iterator {
-                vector.push(element);
-            }
-        }
-        vector
+        let mut new_vec = Vec::new();
+        new_vec.extend(iterable);
+        new_vec
     }
 }
 
@@ -1570,10 +1536,31 @@ impl<T> Extend<T> for Vec<T> {
     #[inline]
     fn extend<I: IntoIterator<Item=T>>(&mut self, iterable: I) {
         let iterator = iterable.into_iter();
-        let (lower, _) = iterator.size_hint();
-        self.reserve(lower);
-        for element in iterator {
-            self.push(element)
+        if let Some(new_len) = unsafe { iterator.trusted_len().len() } {
+            // We trust this iterator; fast path where we don't check how many
+            // elements we've pushed. This is also unwinding-safe because we don't
+            // update the `len` until we're done. This means a panic here will
+            // "only" leak everything we insert.
+            let old_len = self.len();
+            self.reserve(new_len);
+            unsafe {
+                let mut head = self.ptr.offset(old_len as isize);
+                for element in iterator {
+                    ptr::write(head, element);
+                    head = head.offset(1);
+                }
+                if mem::size_of::<T>() == 0 {
+                    self.set_len(old_len.checked_add(new_len).expect("Capacity overflow"));
+                } else {
+                    self.set_len(old_len + new_len);
+                }
+            }
+        } else {
+            let (lower, _) = iterator.size_hint();
+            self.reserve(lower);
+            for element in iterator {
+                self.push(element)
+            }
         }
     }
 }
@@ -1779,6 +1766,9 @@ impl<T> Iterator for IntoIter<T> {
     }
 
     #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { TrustedLen::Len(self.size_hint().0) }
+
+    #[inline]
     fn count(self) -> usize {
         self.size_hint().0
     }
@@ -1855,6 +1845,9 @@ impl<'a, T> Iterator for Drain<'a, T> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { TrustedLen::Len(self.size_hint().0) }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]

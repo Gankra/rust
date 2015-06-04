@@ -706,6 +706,10 @@ macro_rules! iterator {
             fn last(mut self) -> Option<$elem> {
                 self.next_back()
             }
+
+            #[inline]
+            unsafe fn trusted_len(&self) -> TrustedLen { TrustedLen::Len(self.size_hint().0) }
+
         }
 
         #[stable(feature = "rust1", since = "1.0.0")]

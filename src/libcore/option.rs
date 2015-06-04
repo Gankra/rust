@@ -149,7 +149,7 @@ use clone::Clone;
 use cmp::{Eq, Ord};
 use default::Default;
 use iter::ExactSizeIterator;
-use iter::{Iterator, DoubleEndedIterator, FromIterator, IntoIterator};
+use iter::{Iterator, DoubleEndedIterator, FromIterator, IntoIterator, TrustedLen};
 use mem;
 use ops::FnOnce;
 use result::Result::{Ok, Err};
@@ -801,6 +801,9 @@ impl<A> Iterator for Item<A> {
             None => (0, Some(0)),
         }
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { TrustedLen::Len(self.size_hint().0) }
 }
 
 impl<A> DoubleEndedIterator for Item<A> {
@@ -824,6 +827,8 @@ impl<'a, A> Iterator for Iter<'a, A> {
     fn next(&mut self) -> Option<&'a A> { self.inner.next() }
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) { self.inner.size_hint() }
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { self.inner.trusted_len() }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -854,6 +859,8 @@ impl<'a, A> Iterator for IterMut<'a, A> {
     fn next(&mut self) -> Option<&'a mut A> { self.inner.next() }
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) { self.inner.size_hint() }
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { self.inner.trusted_len() }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -877,6 +884,8 @@ impl<A> Iterator for IntoIter<A> {
     fn next(&mut self) -> Option<A> { self.inner.next() }
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) { self.inner.size_hint() }
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { self.inner.trusted_len() }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]

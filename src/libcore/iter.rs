@@ -57,6 +57,7 @@
 #![stable(feature = "rust1", since = "1.0.0")]
 
 use self::MinMaxResult::*;
+use self::TrustedLen::*;
 
 use clone::Clone;
 use cmp;
@@ -103,6 +104,20 @@ pub trait Iterator {
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
     fn size_hint(&self) -> (usize, Option<usize>) { (0, None) }
+
+    /// If the response to this function is `Some(n)`, the iterator is claiming
+    /// that it is *Undefined Behaviour* for it to yield anything other than
+    /// `n` more elements. This enables unsafe code to trust the len when
+    /// allocating a buffer to copy elements into. This function is actually 100%
+    /// safe to call and rely on, but entirely unsafe to *implement*.
+    ///
+    /// After this iterator yields `None`, it still can't be expected
+    /// to always yield `None` if `next` is called again. However the `trusted_len`
+    /// must reflect this by being `None`.
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen {
+        Uncertain
+    }
 
     /// Counts the number of elements in this iterator.
     ///
@@ -1137,6 +1152,7 @@ impl<'a, I: Iterator + ?Sized> Iterator for &'a mut I {
     type Item = I::Item;
     fn next(&mut self) -> Option<I::Item> { (**self).next() }
     fn size_hint(&self) -> (usize, Option<usize>) { (**self).size_hint() }
+    unsafe fn trusted_len(&self) -> TrustedLen { (**self).trusted_len() }
 }
 
 /// Conversion from an `Iterator`
@@ -1305,6 +1321,8 @@ impl<I> Iterator for Rev<I> where I: DoubleEndedIterator {
     fn next(&mut self) -> Option<<I as Iterator>::Item> { self.iter.next_back() }
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) { self.iter.size_hint() }
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { self.iter.trusted_len() }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1400,6 +1418,8 @@ impl<'a, I, T: 'a> Iterator for Cloned<I>
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.it.size_hint()
     }
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { self.it.trusted_len() }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1561,6 +1581,18 @@ impl<A, B> Iterator for Chain<A, B> where
 
         (lower, upper)
     }
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen {
+        match (self.a.trusted_len(), self.b.trusted_len()) {
+            (Len(a), Len(b)) => match a.checked_add(b) {
+                Some(len)                 => Len(len),
+                None                      => TooBig,
+            },
+            // (Infinite, _) | (_, Infinite) => Infinite,
+            (TooBig, _) | (_, TooBig)     => TooBig,
+            _                             => Uncertain,
+        }
+    }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1638,6 +1670,20 @@ impl<A, B> Iterator for Zip<A, B> where A: Iterator, B: Iterator
 
         (lower, upper)
     }
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen {
+        match (self.a.trusted_len(), self.b.trusted_len()) {
+            (Len(a), Len(b)) => Len(cmp::min(a, b)),
+            // (Infinite, Infinite)                    => Infinite
+            // (TooBig | Infinite, TooBig | Infinite)  => TooBig,
+            // (TooBig | Infinite, Len(b))             => Len(b),
+            // (Len(a), TooBig | Infinite)             => Len(a),
+            (TooBig, TooBig)                    => TooBig,
+            (TooBig, Len(b))             => Len(b),
+            (Len(a), TooBig)             => Len(a),
+            _                                       => Uncertain,
+        }
+    }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1707,6 +1753,9 @@ impl<B, I: Iterator, F> Iterator for Map<I, F> where F: FnMut(I::Item) -> B {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { self.iter.trusted_len() }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1876,6 +1925,9 @@ impl<I> Iterator for Enumerate<I> where I: Iterator {
     fn count(self) -> usize {
         self.iter.count()
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { self.iter.trusted_len() }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1969,6 +2021,18 @@ impl<I: Iterator> Iterator for Peekable<I> {
             (lo, hi)
         } else {
             (lo, hi)
+        }
+    }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen {
+        match self.iter.trusted_len() {
+            Len(len) => match len.checked_add(1) {
+                Some(len) => Len(len),
+                None      => TooBig,
+            },
+            TooBig        => TooBig,
+            Uncertain     => Uncertain,
         }
     }
 }
@@ -2141,6 +2205,17 @@ impl<I> Iterator for Skip<I> where I: Iterator {
 
         (lower, upper)
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen {
+        match self.iter.trusted_len() {
+            Len(len) => Len(len.saturating_sub(self.n)),
+            // If we had Infinite we could forward that, but TooBig might drop down to
+            // Len, and we can't tell or allow that.
+            _        => Uncertain,
+        }
+    }
+
 }
 
 #[unstable(feature = "core", reason = "trait is experimental")]
@@ -2168,8 +2243,9 @@ impl<I> ExactSizeIterator for Skip<I> where I: ExactSizeIterator {}
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct Take<I> {
+    n: usize,
     iter: I,
-    n: usize
+
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -2213,6 +2289,16 @@ impl<I> Iterator for Take<I> where I: Iterator{
 
         (lower, upper)
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen {
+        match self.iter.trusted_len() {
+            Len(len)  => Len(cmp::min(self.n, len)),
+            TooBig    => Len(self.n),
+            Uncertain => Uncertain,
+        }
+    }
+
 }
 
 #[unstable(feature = "core", reason = "trait is experimental")]
@@ -2398,6 +2484,12 @@ impl<I> Iterator for Fuse<I> where I: Iterator {
             self.iter.size_hint()
         }
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen {
+        self.iter.trusted_len()
+    }
+
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -2477,6 +2569,9 @@ impl<I: Iterator, F> Iterator for Inspect<I, F> where F: FnMut(&I::Item) {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { self.iter.trusted_len() }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -2594,6 +2689,12 @@ pub trait Step: PartialOrd {
     /// Returns `None` if it is not possible to calculate `steps_between`
     /// without overflow.
     fn steps_between(start: &Self, end: &Self, by: &Self) -> Option<usize>;
+
+    #[allow(unused_variables)]
+    /// See trusted_len on Iterator for details.
+    unsafe fn trusted_steps_between(start: &Self, end: &Self, by: &Self) -> TrustedLen {
+        Uncertain
+    }
 }
 
 macro_rules! step_impl_unsigned {
@@ -2618,6 +2719,13 @@ macro_rules! step_impl_unsigned {
                     }
                 } else {
                     Some(0)
+                }
+            }
+
+            unsafe fn trusted_steps_between(start: &$t, end: &$t, by: &$t) -> TrustedLen {
+                match Step::steps_between(start, end, by) {
+                    Some(len) => Len(len),
+                    None => Uncertain,
                 }
             }
         }
@@ -2656,6 +2764,13 @@ macro_rules! step_impl_signed {
                     Some(diff / by_u + 1)
                 } else {
                     Some(diff / by_u)
+                }
+            }
+
+            unsafe fn trusted_steps_between(start: &$t, end: &$t, by: &$t) -> TrustedLen {
+                match Step::steps_between(start, end, by) {
+                    Some(len) => Len(len),
+                    None => Uncertain,
                 }
             }
         }
@@ -2772,6 +2887,10 @@ impl<A> Iterator for StepBy<A, RangeFrom<A>> where
     fn size_hint(&self) -> (usize, Option<usize>) {
         (usize::MAX, None) // Too bad we can't specify an infinite lower bound
     }
+
+    #[inline]
+    // Haha, but *we* can, size_hint!
+    unsafe fn trusted_len(&self) -> TrustedLen { TooBig }
 }
 
 /// An iterator over the range [start, stop]
@@ -2827,6 +2946,23 @@ impl<A> Iterator for RangeInclusive<A> where
             (lo, hi)
         }
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen {
+        match self.range.trusted_len() {
+            Len(len) => if self.done {
+                                 Len(0)
+            } else {
+                match len.checked_add(1) {
+                    Some(len) => Len(len),
+                    None      => TooBig,
+                }
+            },
+            TooBig            => TooBig,
+            Uncertain         => Uncertain,
+        }
+    }
+
 }
 
 #[unstable(feature = "core",
@@ -2887,6 +3023,13 @@ impl<A: Step + Zero + Clone> Iterator for StepBy<A, ops::Range<A>> {
             None       => (0, None)
         }
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen {
+        Step::trusted_steps_between(&self.range.start,
+                                    &self.range.end,
+                                    &self.step_by)
+    }
 }
 
 macro_rules! range_exact_iter_impl {
@@ -2920,6 +3063,11 @@ impl<A: Step + One> Iterator for ops::Range<A> where
             Some(hint) => (hint, Some(hint)),
             None => (0, None)
         }
+    }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen {
+        Step::trusted_steps_between(&self.start, &self.end, &A::one())
     }
 }
 
@@ -2957,6 +3105,8 @@ impl<A: Step + One> Iterator for ops::RangeFrom<A> where
         mem::swap(&mut n, &mut self.start);
         Some(n)
     }
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { TooBig }
 }
 
 /// An iterator that repeats an element endlessly
@@ -2974,6 +3124,10 @@ impl<A: Clone> Iterator for Repeat<A> {
     fn next(&mut self) -> Option<A> { self.idx(0) }
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) { (usize::MAX, None) }
+    #[inline]
+    fn nth(&mut self, n: usize) -> Option<A> { Some(self.element.clone()) }
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { TooBig }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -3045,6 +3199,10 @@ impl<T> Iterator for Empty<T> {
     fn size_hint(&self) -> (usize, Option<usize>){
         (0, Some(0))
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { Len(0) }
+
 }
 
 #[unstable(feature="iter_empty", reason = "new addition")]
@@ -3102,6 +3260,10 @@ impl<T> Iterator for Once<T> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { self.inner.trusted_len() }
+
 }
 
 #[unstable(feature="iter_once", reason = "new addition")]
@@ -3270,6 +3432,28 @@ pub mod order {
                 (_   , None) => return true,
                 (Some(x), Some(y)) => if x.ne(&y) { return x.ge(&y) },
             }
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+/// For specifying the trusted_len of an Iterator
+pub enum TrustedLen {
+    /// The implementor is uncertain of their len.
+    Uncertain,
+    /// The implementor is certain that their len is bigger than `usize::MAX`.
+    TooBig,
+    /// THe implementor is certain that their len is this value.
+    Len(usize),
+}
+
+impl TrustedLen {
+    /// Gets the Len variant's size, or else yields None.
+    #[inline]
+    pub fn len(self) -> Option<usize> {
+        match self {
+            Len(x) => Some(x),
+            _      => None,
         }
     }
 }

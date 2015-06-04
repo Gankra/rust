@@ -22,7 +22,7 @@ use core::prelude::*;
 
 use core::cmp::Ordering;
 use core::fmt;
-use core::iter::{self, repeat, FromIterator, RandomAccessIterator};
+use core::iter::{self, repeat, FromIterator, RandomAccessIterator, TrustedLen};
 use core::mem;
 use core::ops::{Index, IndexMut};
 use core::ptr::{self, Unique};
@@ -1512,6 +1512,9 @@ impl<'a, T> Iterator for Iter<'a, T> {
         let len = count(self.tail, self.head, self.ring.len());
         (len, Some(len))
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { TrustedLen::Len(self.size_hint().0) }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1579,6 +1582,9 @@ impl<'a, T> Iterator for IterMut<'a, T> {
         let len = count(self.tail, self.head, self.ring.len());
         (len, Some(len))
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { TrustedLen::Len(self.size_hint().0) }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1621,6 +1627,9 @@ impl<T> Iterator for IntoIter<T> {
         let len = self.inner.len();
         (len, Some(len))
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { TrustedLen::Len(self.size_hint().0) }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1664,6 +1673,9 @@ impl<'a, T: 'a> Iterator for Drain<'a, T> {
         let len = self.inner.len();
         (len, Some(len))
     }
+
+    #[inline]
+    unsafe fn trusted_len(&self) -> TrustedLen { TrustedLen::Len(self.size_hint().0) }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
