@@ -2,9 +2,8 @@
 # `language: C` unconditionally sets `CC=compiler`. If we just set it in our
 # `env` it will be overwritten by the default (gcc 4.6).
 language: c
-compiler: /usr/bin/gcc-4.7
 cache: ccache
-sudo: false
+sudo: 9000
 
 # The test suite is in general way too stressful for travis, especially in
 # terms of time limit and reliability. In the past we've tried to scale things
@@ -18,20 +17,16 @@ sudo: false
 # We need gcc4.7 or higher to build LLVM, and travis (well, Ubuntu 12.04)
 # currently ships with 4.6. Gotta download our own.
 before_script:
-  - ./configure --enable-ccache
+#  - update-alternatives --query llvm
+  - sudo update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-3.6 99
+  - ./configure --enable-ccache --llvm-root=/usr
 script:
   - make tidy check -j4
 
-env:
-  - CXX=/usr/bin/g++-4.7
-
 addons:
   apt:
-    sources:
-    - ubuntu-toolchain-r-test
     packages:
-    - gcc-4.7
-    - g++-4.7
+    - llvm-3.6-dev
 
 # Real testing happens on http://buildbot.rust-lang.org/
 #
@@ -43,4 +38,4 @@ notifications:
 
 branches:
   only:
-    - master
+    - exactly-9000
