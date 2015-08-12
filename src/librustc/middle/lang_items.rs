@@ -318,6 +318,7 @@ lets_do_this! {
     PanicFnLangItem,                 "panic",                   panic_fn;
     PanicBoundsCheckFnLangItem,      "panic_bounds_check",      panic_bounds_check_fn;
     PanicFmtLangItem,                "panic_fmt",               panic_fmt;
+    OOMLangItem,                     "oom",                     oom;
 
     ExchangeMallocFnLangItem,        "exchange_malloc",         exchange_malloc_fn;
     ExchangeFreeFnLangItem,          "exchange_free",           exchange_free_fn;
