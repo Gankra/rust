@@ -217,6 +217,7 @@
 #![feature(core_simd)]
 #![feature(drain)]
 #![feature(fnbox)]
+#![feature(hash_one_shot)]
 #![feature(heap_api)]
 #![feature(int_error_internals)]
 #![feature(into_cow)]

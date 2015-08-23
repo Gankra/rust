@@ -38,6 +38,7 @@
 #![feature(core_intrinsics)]
 #![feature(core_slice_ext)]
 #![feature(core_str_ext)]
+#![feature(hash_one_shot)]
 #![feature(heap_api)]
 #![feature(iter_order)]
 #![feature(iter_arith)]

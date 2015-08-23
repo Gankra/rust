@@ -12,7 +12,7 @@ use self::BucketState::*;
 
 use clone::Clone;
 use cmp;
-use hash::{Hash, Hasher};
+use hash::Hash;
 use iter::{Iterator, ExactSizeIterator};
 use marker::{Copy, Send, Sync, Sized, self};
 use mem::{align_of, size_of};
@@ -151,12 +151,11 @@ pub fn make_hash<T: ?Sized, S>(hash_state: &S, t: &T) -> SafeHash
     where T: Hash, S: HashState
 {
     let mut state = hash_state.hasher();
-    t.hash(&mut state);
     // We need to avoid 0 in order to prevent collisions with
     // EMPTY_HASH. We can maintain our precious uniform distribution
     // of initial indexes by unconditionally setting the MSB,
     // effectively reducing 64-bits hashes to 63 bits.
-    SafeHash { hash: 0x8000_0000_0000_0000 | state.finish() }
+    SafeHash { hash: 0x8000_0000_0000_0000 | t.hash_one_shot(&mut state) }
 }
 
 // `replace` casts a `*u64` to a `*SafeHash`. Since we statically

@@ -105,6 +105,21 @@ pub trait Hash {
             piece.hash(state);
         }
     }
+
+    /// Hashes only this value
+    #[unstable(feature = "hash_one_shot", reason = "experimental", issue = "0")]
+    fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+        self.hash(state);
+        state.finish()
+    }
+
+    /// Hashes only this value
+    #[unstable(feature = "hash_one_shot", reason = "experimental", issue = "0")]
+    fn hash_slice_one_shot<H: Hasher>(data: &[Self], state: &mut H) -> u64
+    where Self: Sized {
+        Hash::hash_slice(data, state);
+        state.finish()
+    }
 }
 
 /// A trait which represents the ability to hash an arbitrary stream of bytes.
@@ -117,6 +132,15 @@ pub trait Hasher {
     /// Writes some data into this `Hasher`
     #[stable(feature = "rust1", since = "1.0.0")]
     fn write(&mut self, bytes: &[u8]);
+
+    /// Writes only this data and then immediately finishes the hash.
+    ///
+    /// This enables hashers to more aggressively optimize
+    #[unstable(feature = "hash_one_shot", reason = "experimental", issue = "0")]
+    fn write_only(&mut self, bytes: &[u8]) -> u64 {
+        self.write(bytes);
+        self.finish()
+    }
 
     /// Write a single `u8` into this hasher
     #[inline]
@@ -196,6 +220,18 @@ mod impls {
                     let ptr = data.as_ptr() as *const u8;
                     state.write(unsafe { slice::from_raw_parts(ptr, newlen) })
                 }
+
+                fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+                    Hash::hash_slice_one_shot(slice::ref_slice(self), state)
+                }
+
+                fn hash_slice_one_shot<H: Hasher>(data: &[$ty], state: &mut H) -> u64 {
+                    // FIXME(#23542) Replace with type ascription.
+                    #![allow(trivial_casts)]
+                    let newlen = data.len() * ::$ty::BYTES;
+                    let ptr = data.as_ptr() as *const u8;
+                    state.write_only(unsafe { slice::from_raw_parts(ptr, newlen) })
+                }
             }
         )*}
     }
@@ -218,6 +254,10 @@ mod impls {
         fn hash<H: Hasher>(&self, state: &mut H) {
             state.write_u8(*self as u8)
         }
+
+        fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+            (*self as u8).hash_one_shot(state)
+        }
     }
 
     #[stable(feature = "rust1", since = "1.0.0")]
@@ -225,13 +265,23 @@ mod impls {
         fn hash<H: Hasher>(&self, state: &mut H) {
             state.write_u32(*self as u32)
         }
+
+        fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+            (*self as u32).hash_one_shot(state)
+        }
     }
 
     #[stable(feature = "rust1", since = "1.0.0")]
     impl Hash for str {
         fn hash<H: Hasher>(&self, state: &mut H) {
+            // See `[T]` impl for why we write the u8
             state.write(self.as_bytes());
             state.write_u8(0xff)
+        }
+
+        fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+            // See `[T] impl for why we *don't* write the u8
+            self.as_bytes().hash_one_shot(state)
         }
     }
 
@@ -256,7 +306,7 @@ mod impls {
     }
 
     impl_hash_tuple! {}
-    impl_hash_tuple! { A }
+    // (A) is specialized below
     impl_hash_tuple! { A B }
     impl_hash_tuple! { A B C }
     impl_hash_tuple! { A B C D }
@@ -269,11 +319,29 @@ mod impls {
     impl_hash_tuple! { A B C D E F G H I J K }
     impl_hash_tuple! { A B C D E F G H I J K L }
 
+    impl<A: Hash> Hash for (A,) {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            self.0.hash(state);
+        }
+
+        fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+            self.0.hash_one_shot(state)
+        }
+    }
+
     #[stable(feature = "rust1", since = "1.0.0")]
     impl<T: Hash> Hash for [T] {
         fn hash<H: Hasher>(&self, state: &mut H) {
+            // Hash in the `len` so ([a], [a, a]) and ([a, a], [a])
+            // aren't hashed the same.
             self.len().hash(state);
             Hash::hash_slice(self, state)
+        }
+
+        fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+            // Note: `len` not included here! No need to guard against
+            // combinations; we're the only one being hashed!
+            Hash::hash_slice_one_shot(self, state)
         }
     }
 
@@ -283,12 +351,20 @@ mod impls {
         fn hash<H: Hasher>(&self, state: &mut H) {
             (**self).hash(state);
         }
+
+        fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+            (**self).hash_one_shot(state)
+        }
     }
 
     #[stable(feature = "rust1", since = "1.0.0")]
     impl<'a, T: ?Sized + Hash> Hash for &'a mut T {
         fn hash<H: Hasher>(&self, state: &mut H) {
             (**self).hash(state);
+        }
+
+        fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+            (**self).hash_one_shot(state)
         }
     }
 
@@ -297,12 +373,20 @@ mod impls {
         fn hash<H: Hasher>(&self, state: &mut H) {
             state.write_usize(*self as usize)
         }
+
+        fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+            (*self as usize).hash_one_shot(state)
+        }
     }
 
     #[stable(feature = "rust1", since = "1.0.0")]
     impl<T> Hash for *mut T {
         fn hash<H: Hasher>(&self, state: &mut H) {
             state.write_usize(*self as usize)
+        }
+
+        fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+            (*self as usize).hash_one_shot(state)
         }
     }
 }

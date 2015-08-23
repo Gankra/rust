@@ -1035,6 +1035,10 @@ impl<T: Hash> Hash for Vec<T> {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         Hash::hash(&**self, state)
     }
+
+    fn hash_one_shot<H: hash::Hasher>(&self, state: &mut H) -> u64 {
+        Hash::hash_one_shot(&**self, state)
+    }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]

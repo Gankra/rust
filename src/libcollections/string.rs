@@ -923,6 +923,10 @@ impl hash::Hash for String {
     fn hash<H: hash::Hasher>(&self, hasher: &mut H) {
         (**self).hash(hasher)
     }
+
+    fn hash_one_shot<H: hash::Hasher>(&self, hasher: &mut H) -> u64 {
+       (**self).hash_one_shot(hasher)
+    }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
