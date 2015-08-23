@@ -865,6 +865,10 @@ impl<T: ?Sized + Hash> Hash for Arc<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         (**self).hash(state)
     }
+
+    fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+        (**self).hash_one_shot(state)
+    }
 }
 
 #[cfg(test)]

@@ -794,6 +794,11 @@ impl Hash for CodePoint {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.value.hash(state)
     }
+
+    #[inline]
+    fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+        self.value.hash_one_shot(state)
+    }
 }
 
 impl Hash for Wtf8Buf {
@@ -802,6 +807,11 @@ impl Hash for Wtf8Buf {
         state.write(&self.bytes);
         0xfeu8.hash(state)
     }
+
+    #[inline]
+    fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+        self.bytes.hash_one_shot(state)
+    }
 }
 
 impl Hash for Wtf8 {
@@ -809,6 +819,11 @@ impl Hash for Wtf8 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write(&self.bytes);
         0xfeu8.hash(state)
+    }
+
+    #[inline]
+    fn hash_one_shot<H: Hasher>(&self, state: &mut H) -> u64 {
+        self.bytes.hash_one_shot(state)
     }
 }
 

@@ -1036,6 +1036,7 @@ impl<T: Hash> Hash for Vec<T> {
         Hash::hash(&**self, state)
     }
 
+    #[inline]
     fn hash_one_shot<H: hash::Hasher>(&self, state: &mut H) -> u64 {
         Hash::hash_one_shot(&**self, state)
     }

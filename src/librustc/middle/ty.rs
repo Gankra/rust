@@ -1305,8 +1305,14 @@ impl<'tcx> PartialEq for TyS<'tcx> {
 impl<'tcx> Eq for TyS<'tcx> {}
 
 impl<'tcx> Hash for TyS<'tcx> {
+    #[inline]
     fn hash<H: Hasher>(&self, s: &mut H) {
         (self as *const TyS).hash(s)
+    }
+
+    #[inline]
+    fn hash_one_shot<H: Hasher>(&self, s: &mut H) -> u64 {
+        (self as *const TyS).hash_one_shot(s)
     }
 }
 
@@ -1382,8 +1388,14 @@ impl<'tcx> PartialEq for InternedTy<'tcx> {
 impl<'tcx> Eq for InternedTy<'tcx> {}
 
 impl<'tcx> Hash for InternedTy<'tcx> {
+    #[inline]
     fn hash<H: Hasher>(&self, s: &mut H) {
         self.ty.sty.hash(s)
+    }
+
+    #[inline]
+    fn hash_one_shot<H: Hasher>(&self, s: &mut H) -> u64 {
+        self.ty.sty.hash_one_shot(s)
     }
 }
 
@@ -3308,6 +3320,11 @@ impl<'tcx, 'container> Hash for AdtDefData<'tcx, 'container> {
     #[inline]
     fn hash<H: Hasher>(&self, s: &mut H) {
         (self as *const AdtDefData).hash(s)
+    }
+
+    #[inline]
+    fn hash_one_shot<H: Hasher>(&self, s: &mut H) -> u64 {
+        (self as *const AdtDefData).hash_one_shot(s)
     }
 }
 

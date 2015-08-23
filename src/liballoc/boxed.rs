@@ -353,6 +353,10 @@ impl<T: ?Sized + Hash> Hash for Box<T> {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         (**self).hash(state);
     }
+
+    fn hash_one_shot<H: hash::Hasher>(&self, state: &mut H) -> u64 {
+        (**self).hash_one_shot(state)
+    }
 }
 
 impl Box<Any> {

@@ -924,6 +924,7 @@ impl hash::Hash for String {
         (**self).hash(hasher)
     }
 
+    #[inline]
     fn hash_one_shot<H: hash::Hasher>(&self, hasher: &mut H) -> u64 {
        (**self).hash_one_shot(hasher)
     }

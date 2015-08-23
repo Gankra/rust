@@ -28,6 +28,7 @@
 #![feature(associated_consts)]
 #![feature(drain)]
 #![feature(filling_drop)]
+#![feature(hash_one_shot)]
 #![feature(libc)]
 #![feature(ref_slice)]
 #![feature(rustc_private)]

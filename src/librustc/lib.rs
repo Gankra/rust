@@ -38,6 +38,7 @@
 #![feature(enumset)]
 #![feature(fs_canonicalize)]
 #![feature(hashmap_hasher)]
+#![feature(hash_one_shot)]
 #![feature(into_cow)]
 #![feature(iter_cmp)]
 #![feature(iter_arith)]
