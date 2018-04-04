@@ -295,6 +295,7 @@ language_item_table! {
     PanicFnLangItem,                 "panic",                   panic_fn;
     PanicBoundsCheckFnLangItem,      "panic_bounds_check",      panic_bounds_check_fn;
     PanicFmtLangItem,                "panic_fmt",               panic_fmt;
+    OOMLangItem,                     "oom",                     oom;
 
     ExchangeMallocFnLangItem,        "exchange_malloc",         exchange_malloc_fn;
     BoxFreeFnLangItem,               "box_free",                box_free_fn;
